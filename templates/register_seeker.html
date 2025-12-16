@@ -28,7 +28,18 @@
                 <p class="auth-subtitle">Register as Job Seeker</p>
               </div>
 
-              <form class="auth-form" autocomplete="off">
+              {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show mb-4" role="alert" style="font-weight: 500;">
+                      <strong>{{ '✓ Success!' if category == 'success' else '✗ Error!' }}</strong> {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
+
+              <form class="auth-form" autocomplete="off" method="POST" action="{{ url_for('register_seeker') }}">
                 <div class="row">
                   <div class="col-md-6">
                     <div class="mb-3">
