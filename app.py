@@ -9,6 +9,8 @@ from flask import (
 )
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from flask import send_from_directory
 from datetime import datetime
 from functools import wraps
 import os
@@ -18,6 +20,15 @@ app.secret_key = 'your-secret-key-change-this-in-production'  # Change this in p
 
 # Database setup
 DATABASE = 'careerconnect.db'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt'}
+MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# Ensure upload folder exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 def get_db():
     """Get database connection"""
@@ -72,6 +83,22 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # Resumes table
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS resumes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            filename TEXT NOT NULL,
+            original_filename TEXT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 # Initialize database on app start
 init_db()
 
@@ -100,6 +127,97 @@ def login_required(role=None):
 @app.route("/")
 def home():
     return redirect(url_for("login"))
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/seeker/upload_resume', methods=['GET', 'POST'])
+@login_required(role='seeker')
+def upload_resume():
+    user_id = session.get('user_id')
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # fetch existing resume if any
+    resume = cursor.execute('SELECT filename, original_filename FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+
+    if request.method == 'POST':
+        if 'resume' not in request.files:
+            flash('No file part', 'error')
+            conn.close()
+            return render_template('upload_resume.html', resume=resume)
+
+        file = request.files['resume']
+
+        if file.filename == '':
+            flash('No selected file', 'error')
+            conn.close()
+            return render_template('upload_resume.html', resume=resume)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(f"{user_id}_{int(datetime.utcnow().timestamp())}_{file.filename}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            existing = cursor.execute('SELECT id, filename FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+
+            if existing:
+                # remove previous file if exists
+                try:
+                    old_path = os.path.join(app.config['UPLOAD_FOLDER'], existing['filename'])
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except Exception:
+                    pass
+
+                cursor.execute(
+                    'UPDATE resumes SET filename = ?, original_filename = ?, uploaded_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    (filename, file.filename, existing['id']),
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO resumes (user_id, filename, original_filename) VALUES (?, ?, ?)',
+                    (user_id, filename, file.filename),
+                )
+
+            conn.commit()
+
+            # fetch updated resume and stay on the same page
+            resume = cursor.execute('SELECT filename, original_filename FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+            conn.close()
+            flash('Resume uploaded successfully', 'success')
+            return render_template('upload_resume.html', resume=resume)
+        else:
+            flash('File type not allowed. Allowed: pdf, doc, docx, txt', 'error')
+            conn.close()
+            return render_template('upload_resume.html', resume=resume)
+
+    conn.close()
+    return render_template('upload_resume.html', resume=resume)
+
+
+@app.route('/uploads/<path:filename>')
+@login_required()
+def download_resume(filename):
+    # allow access only to owner, recruiters, or admin
+    user_id = session.get('user_id')
+    role = session.get('role')
+    conn = get_db()
+    cursor = conn.cursor()
+    res = cursor.execute('SELECT user_id FROM resumes WHERE filename = ?', (filename,)).fetchone()
+    conn.close()
+
+    if not res:
+        flash('File not found', 'error')
+        return redirect(url_for('seeker_dashboard'))
+
+    if res['user_id'] != user_id and role not in ('recruiter', 'admin'):
+        flash('Access denied', 'error')
+        return redirect(url_for('seeker_dashboard'))
+
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 @app.route("/login", methods=['GET', 'POST'])
 def login():
@@ -293,13 +411,16 @@ def seeker_dashboard():
         (user_id,),
     ).fetchone()
 
+    # fetch resume if exists
+    resume = cursor.execute('SELECT filename, original_filename FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+
     conn.close()
 
     if not profile:
         flash("No profile found. Please complete your profile.", "error")
         profile = {}
 
-    return render_template("seeker_dashboard.html", profile=profile)
+    return render_template("seeker_dashboard.html", profile=profile, resume=resume)
 
 
 @app.route("/seeker/profile", methods=["GET", "POST"])

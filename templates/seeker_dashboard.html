@@ -39,8 +39,8 @@
           <p class="text-muted mb-0">Track your applications, recommendations, and resume insights</p>
         </div>
         <div class="d-flex gap-2">
-          <button class="btn btn-outline-primary">Edit Profile</button>
-          <button class="btn btn-primary">Upload / Replace Resume</button>
+          <a class="btn btn-outline-primary" href="{{ url_for('seeker_profile') }}">Edit Profile</a>
+          <a class="btn btn-primary" href="{{ url_for('upload_resume') }}">Upload / Replace Resume</a>
         </div>
       </div>
 
@@ -64,6 +64,23 @@
                 <li class="mb-1">Experience: {{ profile.experience_years or '0' }} years</li>
                 <li class="mb-1">Primary skills: {{ profile.primary_skills or '-' }}</li>
               </ul>
+              {% if resume %}
+              <div class="small text-muted mb-3">
+                <strong>Resume:</strong>
+                <a href="{{ url_for('download_resume', filename=resume.filename) }}">{{ resume.original_filename or resume.filename }}</a>
+                <div class="mt-2">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('upload_resume') }}">Replace</a>
+                </div>
+              </div>
+              {% else %}
+              <div class="small text-muted mb-3">
+                <strong>Resume:</strong> <span class="text-muted">No resume uploaded</span>
+                <div class="mt-2">
+                  <a class="btn btn-sm btn-primary" href="{{ url_for('upload_resume') }}">Upload Resume</a>
+                </div>
+              </div>
+              {% endif %}
+
               <a class="btn btn-outline-primary w-100" href="{{ url_for('seeker_profile') }}">View / Edit Profile</a>
             </div>
           </div>
