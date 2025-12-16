@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Edit Profile | CareerConnect</title>
+    <!-- Bootstrap CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  </head>
+  <body class="auth-page" style="background: #f5f7fb;">
+    <div class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+          <div class="card shadow-sm">
+            <div class="card-body p-4 p-md-5">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                  <h3 class="mb-1">Edit Profile</h3>
+                  <p class="text-muted mb-0">Update your basic details and skills</p>
+                </div>
+                <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+              </div>
+
+              {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show mb-3" role="alert">
+                      {{ message }}
+                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
+
+              <form method="POST" action="{{ url_for('seeker_profile') }}">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label" for="full_name">Full Name</label>
+                      <input
+                        id="full_name"
+                        name="full_name"
+                        type="text"
+                        class="form-control"
+                        value="{{ profile.full_name or '' }}"
+                        placeholder="Enter your full name"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label" for="email">Email</label>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        class="form-control"
+                        value="{{ profile.email or '' }}"
+                        placeholder="your.email@example.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label" for="education">Education</label>
+                      <select id="education" name="education" class="form-select" required>
+                        {% set edu = profile.education or '' %}
+                        <option value="">Select your education level</option>
+                        <option value="High School" {{ 'selected' if edu == 'High School' else '' }}>High School</option>
+                        <option value="Diploma" {{ 'selected' if edu == 'Diploma' else '' }}>Diploma</option>
+                        <option value="Bachelor's Degree" {{ 'selected' if edu == \"Bachelor's Degree\" else '' }}>Bachelor's Degree</option>
+                        <option value="Master's Degree" {{ 'selected' if edu == \"Master's Degree\" else '' }}>Master's Degree</option>
+                        <option value="PhD" {{ 'selected' if edu == 'PhD' else '' }}>PhD</option>
+                        <option value="Other" {{ 'selected' if edu == 'Other' else '' }}>Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="mb-3">
+                      <label class="form-label" for="experience">Experience (Years)</label>
+                      <input
+                        id="experience"
+                        name="experience"
+                        type="number"
+                        class="form-control"
+                        value="{{ profile.experience_years or '' }}"
+                        placeholder="0"
+                        min="0"
+                        max="50"
+                        step="0.5"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label" for="primary_skills">Primary Skills</label>
+                  <textarea
+                    id="primary_skills"
+                    name="primary_skills"
+                    class="form-control"
+                    rows="3"
+                    placeholder="e.g., Python, SQL, React, Machine Learning"
+                    required
+                  >{{ profile.primary_skills or '' }}</textarea>
+                  <small class="text-muted">Enter skills separated by commas</small>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                  <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+      crossorigin="anonymous"
+    ></script>
+  </body>
+</html>
+
+

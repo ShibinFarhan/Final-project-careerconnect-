@@ -32,7 +32,10 @@
       <!-- Header -->
       <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-3">
         <div>
-          <h2 class="mb-1">Welcome back, <span class="text-primary">Job Seeker</span></h2>
+          <h2 class="mb-1">
+            Welcome back,
+            <span class="text-primary">{{ profile.full_name or profile.username or 'Job Seeker' }}</span>
+          </h2>
           <p class="text-muted mb-0">Track your applications, recommendations, and resume insights</p>
         </div>
         <div class="d-flex gap-2">
@@ -61,7 +64,7 @@
                 <li class="mb-1">Experience: {{ profile.experience_years or '0' }} years</li>
                 <li class="mb-1">Primary skills: {{ profile.primary_skills or '-' }}</li>
               </ul>
-              <button class="btn btn-outline-primary w-100">View / Edit Profile</button>
+              <a class="btn btn-outline-primary w-100" href="{{ url_for('seeker_profile') }}">View / Edit Profile</a>
             </div>
           </div>
         </div>

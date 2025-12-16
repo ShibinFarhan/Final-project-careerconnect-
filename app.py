@@ -301,6 +301,72 @@ def seeker_dashboard():
 
     return render_template("seeker_dashboard.html", profile=profile)
 
+
+@app.route("/seeker/profile", methods=["GET", "POST"])
+@login_required(role="seeker")
+def seeker_profile():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        full_name = request.form.get("full_name")
+        email = request.form.get("email")
+        education = request.form.get("education")
+        experience = request.form.get("experience")
+        primary_skills = request.form.get("primary_skills")
+
+        if not all([full_name, email, education, experience, primary_skills]):
+            flash("All fields are required", "error")
+        else:
+            try:
+                existing = cursor.execute(
+                    "SELECT id FROM job_seekers WHERE user_id = ?", (user_id,)
+                ).fetchone()
+
+                if existing:
+                    cursor.execute(
+                        """
+                        UPDATE job_seekers
+                        SET full_name = ?, email = ?, education = ?, experience_years = ?, primary_skills = ?
+                        WHERE user_id = ?
+                        """,
+                        (full_name, email, education, float(experience), primary_skills, user_id),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO job_seekers (user_id, full_name, email, education, experience_years, primary_skills)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (user_id, full_name, email, education, float(experience), primary_skills),
+                    )
+
+                conn.commit()
+                flash("Profile updated successfully", "success")
+            except Exception as e:
+                conn.rollback()
+                flash(f"Failed to update profile: {str(e)}", "error")
+
+    profile = cursor.execute(
+        """
+        SELECT u.username,
+               js.full_name,
+               js.email,
+               js.education,
+               js.experience_years,
+               js.primary_skills
+        FROM users u
+        LEFT JOIN job_seekers js ON js.user_id = u.id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
+    conn.close()
+
+    return render_template("seeker_profile.html", profile=profile or {})
+
 @app.route("/recruiter/dashboard")
 @login_required(role="recruiter")
 def recruiter_dashboard():
