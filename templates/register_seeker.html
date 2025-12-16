@@ -28,16 +28,23 @@
                 <p class="auth-subtitle">Register as Job Seeker</p>
               </div>
 
-              {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                  {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show mb-4" role="alert" style="font-weight: 500;">
-                      <strong>{{ '✓ Success!' if category == 'success' else '✗ Error!' }}</strong> {{ message }}
-                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                  {% endfor %}
-                {% endif %}
-              {% endwith %}
+              <!-- Toast Container -->
+              <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="toast align-items-center text-white bg-{{ 'danger' if category == 'error' else 'success' }} border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="5000">
+                        <div class="d-flex">
+                          <div class="toast-body">
+                            {{ message }}
+                          </div>
+                          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+              </div>
 
               <form class="auth-form" autocomplete="off" method="POST" action="{{ url_for('register_seeker') }}">
                 <div class="row">
@@ -229,6 +236,28 @@
           icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
         }
       }
+
+      // Show toast notifications on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        const toastElements = document.querySelectorAll('.toast');
+        toastElements.forEach(function(toastEl) {
+          const toast = new bootstrap.Toast(toastEl);
+          toast.show();
+          
+          // If it's a success toast, redirect to login after 3 seconds
+          if (toastEl.classList.contains('bg-success')) {
+            toastEl.addEventListener('hidden.bs.toast', function() {
+              window.location.href = "{{ url_for('login') }}";
+            });
+            // Also redirect after 3 seconds even if toast is still showing
+            setTimeout(function() {
+              if (window.location.pathname.includes('register')) {
+                window.location.href = "{{ url_for('login') }}";
+              }
+            }, 3000);
+          }
+        });
+      });
     </script>
   </body>
 </html>

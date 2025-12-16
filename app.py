@@ -158,8 +158,8 @@ def register_seeker():
             conn.commit()
             conn.close()
             
-            flash('✅ Registration successful! Your account has been created. Please login with your credentials.', 'success')
-            return redirect(url_for('login'))
+            flash('Register successful, now login', 'success')
+            return render_template("register_seeker.html")
             
         except Exception as e:
             conn.rollback()
@@ -224,8 +224,8 @@ def register_company():
             conn.commit()
             conn.close()
             
-            flash('✅ Registration successful! Your account has been created. Please login with your credentials.', 'success')
-            return redirect(url_for('login'))
+            flash('Register successful, now login', 'success')
+            return render_template("register_company.html")
             
         except Exception as e:
             conn.rollback()
