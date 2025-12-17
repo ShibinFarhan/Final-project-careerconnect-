@@ -56,6 +56,15 @@
 
               <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_resume') }}">
                 <div class="mb-3">
+                  <label for="job_role" class="form-label">Target job role (select or type)</label>
+                  <input list="role-list" name="job_role" id="job_role" class="form-control" placeholder="e.g. backend, data_scientist" value="{{ selected_role or '' }}" />
+                  <datalist id="role-list">
+                    {% for r in role_options or [] %}
+                      <option value="{{ r }}"></option>
+                    {% endfor %}
+                  </datalist>
+                </div>
+                <div class="mb-3">
                   <label for="resume" class="form-label">Choose resume file</label>
                   <input class="form-control" type="file" id="resume" name="resume" accept=".pdf,.doc,.docx,.txt" />
                   <div class="form-text" id="selected-file" style="margin-top:6px;color:#374151;">{% if resume %}Current: {{ resume.original_filename or resume.filename }}{% else %}No file chosen{% endif %}</div>
@@ -64,6 +73,20 @@
                   <a class="btn btn-outline-secondary" href="{{ url_for('seeker_dashboard') }}">Cancel</a>
                   <button type="submit" class="btn btn-primary">Upload</button>
                 </div>
+                </div>
+                {% if analysis %}
+                  <div class="card mb-3">
+                    <div class="card-body small">
+                      {% if role_missing is not none %}
+                        <div><strong>Missing skills for selected job:</strong> {{ role_missing | join(', ') if role_missing else 'None or no mapping' }}</div>
+                      {% endif %}
+                      {% if role_suggestions %}
+                        <div><strong>Suggestions for selected role:</strong> {{ role_suggestions | join('; ') }}</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endif %}
+
               </form>
             </div>
           </div>

@@ -151,6 +151,9 @@ def upload_resume():
             conn.close()
             return render_template('upload_resume.html', resume=resume)
 
+        # optional job role input from user
+        job_role = request.form.get('job_role')
+
         file = request.files['resume']
 
         if file.filename == '':
@@ -199,18 +202,39 @@ def upload_resume():
                 pconn.close()
                 path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
                 analysis = analyzer.analyze_resume_file(path, profile_skills=(prof['primary_skills'] if prof else ''), experience_years=(prof['experience_years'] if prof else 0), education=(prof['education'] if prof else ''))
+                # compute role-specific missing skills / suggestions if job_role provided
+                role_missing = None
+                role_suggestions = None
+                if job_role:
+                    # normalize
+                    jr = job_role.strip().lower()
+                    role_map = getattr(analyzer, 'ROLE_MAP', {})
+                    # try direct match to known roles
+                    if jr in role_map:
+                        required = set(role_map[jr])
+                        found = set(analysis.get('extracted_skills', []))
+                        missing_for_role = sorted(required - found)
+                        role_missing = missing_for_role
+                        if missing_for_role:
+                            role_suggestions = [f'Add skills: {", ".join(missing_for_role)} to match {job_role} roles']
+                        else:
+                            role_suggestions = [f'Profile appears to cover common {job_role} skills']
+                    else:
+                        # no predefined mapping — no role-specific data
+                        role_missing = []
+                        role_suggestions = [f'No predefined skill mapping for "{job_role}".']
             except Exception:
                 analysis = None
 
             flash('Resume uploaded successfully', 'success')
-            return render_template('upload_resume.html', resume=resume, analysis=analysis)
+            return render_template('upload_resume.html', resume=resume, analysis=analysis, role_missing=role_missing, role_suggestions=role_suggestions, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()), selected_role=job_role)
         else:
             flash('File type not allowed. Allowed: pdf, doc, docx, txt', 'error')
             conn.close()
-            return render_template('upload_resume.html', resume=resume)
+            return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
     conn.close()
-    return render_template('upload_resume.html', resume=resume)
+    return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
 
 @app.route('/uploads/<path:filename>')
