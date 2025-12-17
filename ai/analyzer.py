@@ -1,17 +1,44 @@
 import os
+import re
 from pdfminer.high_level import extract_text
 
-# Minimal canonical skills and role mapping
-CANONICAL_SKILLS = [
-    'python', 'java', 'javascript', 'react', 'node', 'sql', 'aws', 'docker', 'kubernetes',
-    'c++', 'c#', 'go', 'ruby', 'php', 'html', 'css', 'tensorflow', 'pytorch', 'nlp', 'linux'
-]
+# Skill synonyms and multi-word variants mapped to canonical keys
+SKILL_SYNONYMS = {
+    'python': ['python'],
+    'machine_learning': ['machine learning', 'ml', 'deep learning'],
+    'java': ['java'],
+    'javascript': ['javascript', 'js'],
+    'react': ['react', 'react.js', 'reactjs'],
+    'node': ['node', 'node.js', 'nodejs'],
+    'sql': ['sql', 'structured query language'],
+    'aws': ['aws', 'amazon web services'],
+    'docker': ['docker', 'containers', 'containerization'],
+    'kubernetes': ['kubernetes', 'k8s'],
+    'c++': ['c\+\+'],
+    'c#': ['c#'],
+    'go': ['go', 'golang'],
+    'ruby': ['ruby'],
+    'php': ['php'],
+    'html': ['html'],
+    'css': ['css'],
+    'tensorflow': ['tensorflow'],
+    'pytorch': ['pytorch'],
+    'nlp': ['nlp', 'natural language processing'],
+    'linux': ['linux']
+}
 
 ROLE_MAP = {
     'backend': {'python', 'java', 'node', 'sql', 'docker', 'aws'},
-    'frontend': {'javascript', 'react', 'html', 'css', 'typescript' },
+    'frontend': {'javascript', 'react', 'html', 'css', 'typescript'},
     'data_scientist': {'python', 'tensorflow', 'pytorch', 'nlp', 'sql'},
     'devops': {'aws', 'docker', 'kubernetes', 'linux'},
+}
+
+# Weights for ATS components (tuneable)
+WEIGHTS = {
+    'skill': 0.7,
+    'experience': 0.2,
+    'education': 0.1,
 }
 
 
@@ -28,25 +55,48 @@ def extract_text_from_file(path):
             with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 return f.read()
         else:
-            # unsupported for now
             return ""
     except Exception:
         return ""
 
 
-def normalize_words(text):
-    return [w.strip().lower() for w in text.replace('\n', ' ').split() if w.strip()]
+def _build_skill_patterns():
+    patterns = []
+    for canonical, synonyms in SKILL_SYNONYMS.items():
+        for syn in synonyms:
+            # use word boundaries; synonyms may contain regex escapes already
+            pat = r'(?i)\b' + syn + r'\b'
+            patterns.append((canonical, re.compile(pat)))
+    return patterns
+
+
+_SKILL_PATTERNS = _build_skill_patterns()
+
+
+def find_skill_occurrences(text, context_chars=40):
+    """Return dict mapping canonical skill -> list of provenance snippets where it was found."""
+    occurrences = {}
+    for canonical, pattern in _SKILL_PATTERNS:
+        for m in pattern.finditer(text):
+            start, end = m.start(), m.end()
+            snippet = text[max(0, start - context_chars):min(len(text), end + context_chars)].strip()
+            occurrences.setdefault(canonical, []).append(snippet)
+    # deduplicate snippets
+    for k in list(occurrences.keys()):
+        uniq = []
+        seen = set()
+        for s in occurrences[k]:
+            if s not in seen:
+                uniq.append(s)
+                seen.add(s)
+        occurrences[k] = uniq
+    return occurrences
 
 
 def extract_skills(text):
-    words = set(normalize_words(text))
-    found = set()
-    for skill in CANONICAL_SKILLS:
-        if skill.lower() in words:
-            found.add(skill.lower())
-    # also detect multi-word skill mentions (e.g., "machine learning") naive approach
-    # (skip for minimal stub)
-    return sorted(found)
+    occ = find_skill_occurrences(text)
+    skills = sorted([k for k, v in occ.items() if v])
+    return skills, occ
 
 
 def predict_roles(skills):
@@ -56,18 +106,16 @@ def predict_roles(skills):
         inter = skills_set.intersection(role_skills)
         if inter:
             scores[role] = len(inter)
-    # sort roles by matched skill count
     return [r for r, _ in sorted(scores.items(), key=lambda kv: kv[1], reverse=True)]
 
 
 def compute_ats(profile_skills, resume_skills, experience_years, education):
-    """Return ATS-like score 0-100 and missing skills list."""
+    """Return detailed ATS-like scoring with components and missing skills."""
     try:
         experience = float(experience_years or 0)
     except Exception:
         experience = 0.0
 
-    # skills
     profile_set = set([s.strip().lower() for s in (profile_skills or '').split(',') if s.strip()])
     resume_set = set([s.strip().lower() for s in (resume_skills or []) if s.strip()])
 
@@ -76,15 +124,11 @@ def compute_ats(profile_skills, resume_skills, experience_years, education):
         skill_match_ratio = len(matched) / max(len(profile_set), 1)
         missing = sorted(profile_set - matched)
     else:
-        # if user hasn't provided skills, measure against canonical skills found
-        canonical = set(resume_set)
-        skill_match_ratio = min(1.0, len(canonical) / max(len(CANONICAL_SKILLS), 1))
+        skill_match_ratio = min(1.0, len(resume_set) / max(len(SKILL_SYNONYMS), 1))
         missing = []
 
-    # experience score normalized (0-1), clamp at 20 years
     experience_score = min(experience / 20.0, 1.0)
 
-    # education simple mapping
     edu_score = 0
     if education:
         ed = education.lower()
@@ -97,20 +141,31 @@ def compute_ats(profile_skills, resume_skills, experience_years, education):
         else:
             edu_score = 0.5
 
-    # weighted sum -> ATS 0-100
-    ats = int(min(100, (skill_match_ratio * 0.7 + experience_score * 0.2 + edu_score * 0.1) * 100))
+    # component scores
+    comp_skill = round(skill_match_ratio, 3)
+    comp_exp = round(experience_score, 3)
+    comp_edu = round(edu_score, 3)
+
+    weighted = comp_skill * WEIGHTS['skill'] + comp_exp * WEIGHTS['experience'] + comp_edu * WEIGHTS['education']
+    ats = int(min(100, weighted * 100))
 
     return {
         'ats_score': ats,
         'skill_match_ratio': round(skill_match_ratio, 2),
         'missing_skills': missing,
         'matched_skills': sorted(list(resume_set.intersection(profile_set))) if profile_set else sorted(list(resume_set)),
+        'component_scores': {
+            'skill_score': comp_skill,
+            'experience_score': comp_exp,
+            'education_score': comp_edu,
+        },
+        'weights': WEIGHTS,
     }
 
 
 def analyze_resume_file(path, profile_skills=None, experience_years=None, education=None):
-    text = extract_text_from_file(path)
-    skills = extract_skills(text)
+    text = extract_text_from_file(path) or ''
+    skills, provenance = extract_skills(text)
     roles = predict_roles(skills)
     ats = compute_ats(profile_skills, skills, experience_years, education)
     suggestions = []
@@ -122,6 +177,7 @@ def analyze_resume_file(path, profile_skills=None, experience_years=None, educat
     return {
         'text_length': len(text),
         'extracted_skills': skills,
+        'skills_provenance': provenance,
         'predicted_roles': roles,
         'ats': ats,
         'suggestions': suggestions,
