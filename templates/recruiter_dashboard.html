@@ -205,9 +205,34 @@
                     </tr>
                   </thead>
                   <tbody id="applications-tbody">
-                    <tr>
-                      <td colspan="6" class="text-muted text-center py-4">No applications yet</td>
-                    </tr>
+                    {% if applications and applications|length > 0 %}
+                      {% for app in applications %}
+                      <tr>
+                        <td>{{ app.candidate_name }}</td>
+                        <td>{{ app.job_title }}</td>
+                        <td>
+                          {% if app.status == 'applied' %}
+                            <span class="badge bg-secondary">New</span>
+                          {% elif app.status == 'shortlisted' %}
+                            <span class="badge bg-info text-dark">Shortlisted</span>
+                          {% elif app.status == 'rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
+                          {% elif app.status == 'hired' %}
+                            <span class="badge bg-success">Hired</span>
+                          {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary">--</span></td>
+                        <td>
+                          <button class="btn btn-sm btn-outline-primary">View Resume</button>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="6" class="text-muted text-center py-4">No applications yet</td>
+                      </tr>
+                    {% endif %}
                   </tbody>
                 </table>
               </div>

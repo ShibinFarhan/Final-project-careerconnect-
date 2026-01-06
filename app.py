@@ -136,6 +136,41 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # Applications table
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            seeker_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'applied' CHECK(status IN ('applied', 'shortlisted', 'rejected', 'hired')),
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES job_postings(id) ON DELETE CASCADE,
+            FOREIGN KEY (seeker_id) REFERENCES job_seekers(id) ON DELETE CASCADE,
+            UNIQUE(job_id, seeker_id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+    # Saved Jobs table
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS saved_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            seeker_id INTEGER NOT NULL,
+            saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES job_postings(id) ON DELETE CASCADE,
+            FOREIGN KEY (seeker_id) REFERENCES job_seekers(id) ON DELETE CASCADE,
+            UNIQUE(job_id, seeker_id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 # Initialize database on app start
 init_db()
 
@@ -511,6 +546,62 @@ def seeker_dashboard():
             # optional job role
             job_role = request.form.get('job_role')
 
+    # fetch all active job postings
+    job_postings = cursor.execute(
+        """
+        SELECT jp.id, jp.job_title, jp.job_description, jp.required_skills, 
+               jp.experience_level, jp.salary_range, jp.job_location, 
+               jp.employment_type, r.company_name
+        FROM job_postings jp
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        WHERE jp.is_active = 1
+        ORDER BY jp.created_at DESC
+        LIMIT 20
+        """
+    ).fetchall()
+
+    # fetch seeker's applications
+    applications = []
+    applied_job_ids = []
+    saved_job_ids = []
+    saved_jobs = []
+    seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+    if seeker:
+        applications = cursor.execute(
+            """
+            SELECT a.id, a.status, a.applied_at,
+                   jp.job_title, r.company_name
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            JOIN job_seekers js ON a.seeker_id = js.id
+            JOIN recruiters r ON jp.recruiter_id = r.id
+            WHERE a.seeker_id = ?
+            ORDER BY a.applied_at DESC
+            """,
+            (seeker['id'],),
+        ).fetchall()
+        
+        # get list of job IDs already applied to
+        applied_job_ids = [app['id'] for app in cursor.execute(
+            'SELECT job_id as id FROM applications WHERE seeker_id = ?', (seeker['id'],)
+        ).fetchall()]
+
+        # get saved jobs
+        saved_jobs = cursor.execute(
+            """
+            SELECT jp.id, jp.job_title, jp.job_location, r.company_name
+            FROM saved_jobs sj
+            JOIN job_postings jp ON sj.job_id = jp.id
+            JOIN recruiters r ON jp.recruiter_id = r.id
+            WHERE sj.seeker_id = ? AND jp.is_active = 1
+            ORDER BY sj.saved_at DESC
+            """,
+            (seeker['id'],),
+        ).fetchall()
+
+        saved_job_ids = [job['id'] for job in cursor.execute(
+            'SELECT job_id as id FROM saved_jobs WHERE seeker_id = ?', (seeker['id'],)
+        ).fetchall()]
 
     conn.close()
 
@@ -518,7 +609,7 @@ def seeker_dashboard():
         flash("No profile found. Please complete your profile.", "error")
         profile = {}
 
-    return render_template("seeker_dashboard.html", profile=profile, resume=resume, analysis=analysis, selected_role=selected_role)
+    return render_template("seeker_dashboard.html", profile=profile, resume=resume, analysis=analysis, selected_role=selected_role, job_postings=job_postings or [], applications=applications or [], applied_job_ids=applied_job_ids, saved_jobs=saved_jobs or [], saved_job_ids=saved_job_ids)
 
 
 @app.route('/seeker/analysis/rerun', methods=['POST'])
@@ -693,6 +784,7 @@ def recruiter_dashboard():
 
     # fetch job postings for this recruiter
     job_postings = []
+    applications = []
     if profile and 'recruiter_id' in profile.keys() and profile['recruiter_id']:
         job_postings = cursor.execute(
             """
@@ -705,13 +797,29 @@ def recruiter_dashboard():
             (profile['recruiter_id'],),
         ).fetchall()
 
+        # fetch applications for recruiter's jobs
+        applications = cursor.execute(
+            """
+            SELECT a.id, a.status, a.applied_at,
+                   jp.job_title, js.full_name as candidate_name, js.email as candidate_email,
+                   js.user_id as seeker_user_id
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            JOIN job_seekers js ON a.seeker_id = js.id
+            WHERE jp.recruiter_id = ?
+            ORDER BY a.applied_at DESC
+            LIMIT 20
+            """,
+            (profile['recruiter_id'],),
+        ).fetchall()
+
     conn.close()
 
     if not profile:
         flash("No recruiter profile found.", "error")
         profile = {}
 
-    return render_template("recruiter_dashboard.html", profile=profile, job_postings=job_postings or [])
+    return render_template("recruiter_dashboard.html", profile=profile, job_postings=job_postings or [], applications=applications or [])
 
 @app.route("/recruiter/profile", methods=["GET", "POST"])
 @login_required(role="recruiter")
@@ -817,6 +925,88 @@ def post_job():
             conn.close()
 
     return render_template("post_job.html")
+
+@app.route("/seeker/apply/<int:job_id>", methods=["POST"])
+@login_required(role="seeker")
+def apply_job(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Check if seeker has uploaded a resume
+    resume = cursor.execute('SELECT id FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+    if not resume:
+        conn.close()
+        flash("Please upload a resume before applying to jobs.", "error")
+        return redirect(url_for("seeker_dashboard"))
+
+    # Get seeker_id from job_seekers table
+    seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+    if not seeker:
+        conn.close()
+        flash("Profile not found. Please complete your profile.", "error")
+        return redirect(url_for("seeker_profile"))
+
+    try:
+        # Insert application
+        cursor.execute(
+            """
+            INSERT INTO applications (job_id, seeker_id, status)
+            VALUES (?, ?, 'applied')
+            """,
+            (job_id, seeker['id']),
+        )
+        conn.commit()
+        flash("Application submitted successfully!", "success")
+    except Exception as e:
+        conn.rollback()
+        if "UNIQUE constraint failed" in str(e):
+            flash("You have already applied to this job.", "warning")
+        else:
+            flash(f"Failed to apply: {str(e)}", "error")
+    finally:
+        conn.close()
+
+    return redirect(url_for("seeker_dashboard"))
+
+@app.route("/seeker/save_job/<int:job_id>", methods=["POST"])
+@login_required(role="seeker")
+def save_job(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+    if not seeker:
+        conn.close()
+        return jsonify({'error': 'Profile not found'}), 400
+
+    try:
+        # Check if already saved
+        existing = cursor.execute(
+            'SELECT id FROM saved_jobs WHERE job_id = ? AND seeker_id = ?',
+            (job_id, seeker['id'])
+        ).fetchone()
+
+        if existing:
+            # Unsave
+            cursor.execute('DELETE FROM saved_jobs WHERE id = ?', (existing['id'],))
+            conn.commit()
+            conn.close()
+            return jsonify({'status': 'unsaved'})
+        else:
+            # Save
+            cursor.execute(
+                'INSERT INTO saved_jobs (job_id, seeker_id) VALUES (?, ?)',
+                (job_id, seeker['id'])
+            )
+            conn.commit()
+            conn.close()
+            return jsonify({'status': 'saved'})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'error': str(e)}), 500
 
 @app.route("/admin/dashboard")
 @login_required(role="admin")
