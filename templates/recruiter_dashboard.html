@@ -2,12 +2,248 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Recruiter Dashboard | CareerConnect AI</title>
+    <title>Recruiter Dashboard | CareerConnect</title>
+    <!-- Bootstrap CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
   </head>
-  <body>
-    <h1>Recruiter Dashboard</h1>
-    <!-- TODO: Implement recruiter dashboard UI -->
+  <body style="background: #f5f7fb;">
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top" style="z-index: 1020;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('recruiter_dashboard') }}">CareerConnect</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#recruiterNav" aria-controls="recruiterNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="recruiterNav">
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <span class="text-muted me-3">
+              <small id="notifications" style="cursor: pointer; text-decoration: underline;">
+                <span id="notification-count">0</span> new applications
+              </small>
+            </span>
+            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+      <!-- Header -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-3">
+        <div>
+          <h2 class="mb-1">
+            Welcome back,
+            <span class="text-primary">{{ profile.company_name or profile.username or 'Recruiter' }}</span>
+          </h2>
+          <p class="text-muted mb-0">Post jobs, review candidates, and manage your hiring pipeline</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary" href="{{ url_for('recruiter_profile') }}">Edit Profile</a>
+          <a class="btn btn-primary" href="{{ url_for('post_job') }}">Post Job</a>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- Company Profile Summary -->
+        <div class="col-xl-3 col-lg-4" id="company-profile">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-weight: 700;">
+                  {{ (profile.company_name or profile.username or 'CC')[:2]|upper if profile else 'CC' }}
+                </div>
+                <div class="ms-3">
+                  <h5 class="mb-0">{{ profile.company_name or 'Your Company' }}</h5>
+                  <small class="text-muted">{{ profile.industry_type or 'Industry' }}</small>
+                </div>
+              </div>
+              <ul class="list-unstyled mb-3 small text-muted">
+                <li class="mb-1">Username: {{ profile.username or '-' }}</li>
+                <li class="mb-1">Location: {{ profile.company_location or '-' }}</li>
+                <li class="mb-1">Industry: {{ profile.industry_type or '-' }}</li>
+                <li class="mb-1">Active Job Postings: <strong id="active-postings">{{ job_postings|length if job_postings else 0 }}</strong></li>
+              </ul>
+              <a class="btn btn-outline-primary w-100" href="{{ url_for('recruiter_profile') }}">View / Edit Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hiring Metrics & Quick Actions -->
+        <div class="col-xl-9 col-lg-8">
+          <div class="row g-4">
+            <!-- Key Metrics -->
+            <div class="col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <h5 class="mb-0">Hiring Pipeline</h5>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">This Month</span>
+                  </div>
+                  <div class="row g-3 small">
+                    <div class="col-6">
+                      <div class="text-muted">Job Postings</div>
+                      <div class="display-6 fw-bold text-primary" id="total-postings">{{ job_postings|length if job_postings else 0 }}</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted">Total Applications</div>
+                      <div class="display-6 fw-bold text-success" id="total-applications">0</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted">Shortlisted</div>
+                      <div class="display-6 fw-bold text-info" id="shortlisted-count">0</div>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted">Rejected</div>
+                      <div class="display-6 fw-bold text-danger" id="rejected-count">0</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <h5 class="mb-3">Quick Actions</h5>
+                  <div class="d-grid gap-2">
+                    <a class="btn btn-primary" href="{{ url_for('post_job') }}">Post New Job</a>
+                    <button class="btn btn-outline-primary">View All Candidates</button>
+                    <button class="btn btn-outline-primary">Shortlisted Candidates</button>
+                    <button class="btn btn-outline-primary">View Analytics</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Job Postings -->
+      <div class="card mt-4 shadow-sm" id="active-jobs">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Active Job Postings</h5>
+            <div class="d-flex gap-2">
+              <select class="form-select form-select-sm" style="width: 180px;">
+                <option selected>Sort by: Recently Posted</option>
+                <option>Most Applications</option>
+                <option>Job Title</option>
+                <option>Posted Date</option>
+              </select>
+              <input class="form-control form-control-sm" style="width: 200px;" placeholder="Filter by job title" />
+            </div>
+          </div>
+          <div class="row g-3" id="job-postings-container">
+            <!-- Job posting cards will be dynamically loaded here -->
+            {% if job_postings and job_postings|length > 0 %}
+              {% for job in job_postings %}
+              <div class="col-lg-4 col-md-6">
+                <div class="card h-100 border-0 shadow-sm">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 class="mb-1">{{ job.job_title }}</h6>
+                        <small class="text-muted">{{ job.job_location }}</small>
+                      </div>
+                      <span class="badge bg-success">Active</span>
+                    </div>
+                    <p class="small text-muted mt-2 mb-2"><strong>Experience:</strong> {{ job.experience_level }}</p>
+                    <p class="small text-muted mb-2"><strong>Type:</strong> {{ job.employment_type }}</p>
+                    {% if job.salary_range %}
+                    <p class="small text-muted mb-2"><strong>Salary:</strong> {{ job.salary_range }}</p>
+                    {% endif %}
+                    <p class="small text-muted mb-2"><strong>Skills:</strong> {{ job.required_skills }}</p>
+                    <div class="d-flex gap-2">
+                      <button class="btn btn-sm btn-primary">View Applications</button>
+                      <button class="btn btn-sm btn-outline-secondary">Edit</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="col-12">
+                <p class="text-muted text-center py-4">No active job postings yet. <a href="{{ url_for('post_job') }}">Post a job now</a></p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Applications & Candidates -->
+      <div class="row g-4 mt-1">
+        <div class="col-lg-8" id="applications">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Recent Applications</h5>
+                <select class="form-select form-select-sm" style="width: 160px;">
+                  <option selected>All statuses</option>
+                  <option>New</option>
+                  <option>Shortlisted</option>
+                  <option>Rejected</option>
+                  <option>Hired</option>
+                </select>
+              </div>
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Candidate</th>
+                      <th>Job Role</th>
+                      <th>Status</th>
+                      <th>Applied</th>
+                      <th>ATS Score</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="applications-tbody">
+                    <tr>
+                      <td colspan="6" class="text-muted text-center py-4">No applications yet</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shortlisted Candidates -->
+        <div class="col-lg-4" id="shortlisted">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h5 class="mb-3">Shortlisted Candidates</h5>
+              <div class="list-group small" id="shortlisted-list">
+                <p class="text-muted text-center py-4">No shortlisted candidates yet</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+      crossorigin="anonymous"
+    ></script>
+
+    <script>
+      // Initialize recruiter dashboard
+      document.addEventListener('DOMContentLoaded', function() {
+        // TODO: Load metrics from backend
+        // TODO: Load job postings from backend
+        // TODO: Load recent applications from backend
+        // TODO: Load shortlisted candidates from backend
+      });
+    </script>
   </body>
 </html>
 

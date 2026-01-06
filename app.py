@@ -114,6 +114,28 @@ def init_db():
             pass
     conn.close()
 
+    # Job Postings table
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS job_postings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recruiter_id INTEGER NOT NULL,
+            job_title TEXT NOT NULL,
+            job_description TEXT NOT NULL,
+            required_skills TEXT,
+            experience_level TEXT,
+            salary_range TEXT,
+            job_location TEXT,
+            employment_type TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (recruiter_id) REFERENCES recruiters(id) ON DELETE CASCADE
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 # Initialize database on app start
 init_db()
 
@@ -651,7 +673,150 @@ def seeker_profile():
 @app.route("/recruiter/dashboard")
 @login_required(role="recruiter")
 def recruiter_dashboard():
-    return render_template("recruiter_dashboard.html")
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    profile = cursor.execute(
+        """
+        SELECT u.username,
+               r.id as recruiter_id,
+               r.company_name,
+               r.industry_type,
+               r.company_location
+        FROM users u
+        LEFT JOIN recruiters r ON r.user_id = u.id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
+    # fetch job postings for this recruiter
+    job_postings = []
+    if profile and 'recruiter_id' in profile.keys() and profile['recruiter_id']:
+        job_postings = cursor.execute(
+            """
+            SELECT id, job_title, job_description, required_skills, experience_level, 
+                   salary_range, job_location, employment_type, is_active, created_at
+            FROM job_postings
+            WHERE recruiter_id = ? AND is_active = 1
+            ORDER BY created_at DESC
+            """,
+            (profile['recruiter_id'],),
+        ).fetchall()
+
+    conn.close()
+
+    if not profile:
+        flash("No recruiter profile found.", "error")
+        profile = {}
+
+    return render_template("recruiter_dashboard.html", profile=profile, job_postings=job_postings or [])
+
+@app.route("/recruiter/profile", methods=["GET", "POST"])
+@login_required(role="recruiter")
+def recruiter_profile():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        company_name = request.form.get("company_name")
+        industry_type = request.form.get("industry_type")
+        company_location = request.form.get("company_location")
+
+        if not all([company_name, industry_type, company_location]):
+            flash("All fields are required", "error")
+        else:
+            try:
+                existing = cursor.execute(
+                    "SELECT id FROM recruiters WHERE user_id = ?", (user_id,)
+                ).fetchone()
+
+                if existing:
+                    cursor.execute(
+                        """
+                        UPDATE recruiters
+                        SET company_name = ?, industry_type = ?, company_location = ?
+                        WHERE user_id = ?
+                        """,
+                        (company_name, industry_type, company_location, user_id),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO recruiters (user_id, company_name, industry_type, company_location)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (user_id, company_name, industry_type, company_location),
+                    )
+
+                conn.commit()
+                flash("Profile updated successfully", "success")
+            except Exception as e:
+                conn.rollback()
+                flash(f"Failed to update profile: {str(e)}", "error")
+
+    profile = cursor.execute(
+        """
+        SELECT u.username,
+               r.company_name,
+               r.industry_type,
+               r.company_location
+        FROM users u
+        LEFT JOIN recruiters r ON r.user_id = u.id
+        WHERE u.id = ?
+        """,
+        (user_id,),
+    ).fetchone()
+
+    conn.close()
+
+    return render_template("recruiter_profile.html", profile=profile or {})
+
+@app.route("/recruiter/post_job", methods=["GET", "POST"])
+@login_required(role="recruiter")
+def post_job():
+    user_id = session.get("user_id")
+    
+    if request.method == "POST":
+        job_title = request.form.get("job_title")
+        job_description = request.form.get("job_description")
+        required_skills = request.form.get("required_skills")
+        experience_level = request.form.get("experience_level")
+        salary_range = request.form.get("salary_range")
+        job_location = request.form.get("job_location")
+        employment_type = request.form.get("employment_type")
+
+        if not all([job_title, job_description, required_skills, experience_level, job_location, employment_type]):
+            flash("All fields are required", "error")
+            return render_template("post_job.html")
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                INSERT INTO job_postings 
+                (recruiter_id, job_title, job_description, required_skills, experience_level, salary_range, job_location, employment_type)
+                VALUES (
+                    (SELECT id FROM recruiters WHERE user_id = ?),
+                    ?, ?, ?, ?, ?, ?, ?
+                )
+                """,
+                (user_id, job_title, job_description, required_skills, experience_level, salary_range, job_location, employment_type),
+            )
+            conn.commit()
+            flash("Job posted successfully!", "success")
+            return redirect(url_for("recruiter_dashboard"))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Failed to post job: {str(e)}", "error")
+        finally:
+            conn.close()
+
+    return render_template("post_job.html")
 
 @app.route("/admin/dashboard")
 @login_required(role="admin")
