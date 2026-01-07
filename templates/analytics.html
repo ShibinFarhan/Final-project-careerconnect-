@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Analytics | CareerConnect</title>
+    <!-- Bootstrap CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body style="background: #f5f7fb;">
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top" style="z-index: 1020;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('recruiter_dashboard') }}">CareerConnect</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#recruiterNav" aria-controls="recruiterNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="recruiterNav">
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="text-dark">Hiring Analytics</h1>
+            <p class="text-muted">Overview of your recruitment pipeline</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('recruiter_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Metrics Cards -->
+    <div class="row g-3 mb-5">
+        <!-- Total Jobs -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-briefcase fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['total_jobs'] }}</h3>
+                    <p class="card-text text-muted small">Total Jobs</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Jobs -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['active_jobs'] }}</h3>
+                    <p class="card-text text-muted small">Active Jobs</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Applications -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-secondary mb-2">
+                        <i class="fas fa-file-alt fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['total_applications'] }}</h3>
+                    <p class="card-text text-muted small">Applications</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shortlisted -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-star fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['shortlisted'] }}</h3>
+                    <p class="card-text text-muted small">Shortlisted</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rejected -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-danger mb-2">
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['rejected'] }}</h3>
+                    <p class="card-text text-muted small">Rejected</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hired -->
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-handshake fa-2x"></i>
+                    </div>
+                    <h3 class="card-title text-dark">{{ analytics['hired'] }}</h3>
+                    <p class="card-text text-muted small">Hired</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversion Rate -->
+    <div class="row mb-5">
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-dark mb-4">Conversion Rate</h5>
+                    <div class="text-center">
+                        <h2 class="text-warning mb-3">{{ analytics['conversion_rate'] }}%</h2>
+                        <p class="text-muted">{{ analytics['hired'] }} hired out of {{ analytics['total_applications'] }} applications</p>
+                    </div>
+                    <div class="progress mt-4" style="height: 25px;">
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ analytics['conversion_rate'] }}%;" aria-valuenow="{{ analytics['conversion_rate'] }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ analytics['conversion_rate'] }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Breakdown -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-dark mb-4">Pipeline Breakdown</h5>
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Applied</span>
+                            <span class="badge bg-secondary">{{ analytics['total_applications'] }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Shortlisted</span>
+                            <span class="badge bg-info">{{ analytics['shortlisted'] }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Rejected</span>
+                            <span class="badge bg-danger">{{ analytics['rejected'] }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>Hired</span>
+                            <span class="badge bg-success">{{ analytics['hired'] }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9u7t1ToMVj0u5WIDIW+lKKJFBIkGE4j7Kd6n2UXXHWzEKVsKDTNM2yyV" crossorigin="anonymous"></script>
+</body>
+</html>
