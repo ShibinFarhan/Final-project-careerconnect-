@@ -132,10 +132,10 @@
                 <div class="card-body">
                   <h5 class="mb-3">Quick Actions</h5>
                   <div class="d-grid gap-2">
-                    <button class="btn btn-outline-primary">Search Jobs</button>
-                    <button class="btn btn-outline-primary">Update Skills</button>
-                    <button class="btn btn-outline-primary">View Saved Jobs</button>
-                    <button class="btn btn-outline-primary">Check Application Status</button>
+                    <a class="btn btn-outline-primary" href="{{ url_for('all_jobs') }}">Browse All Jobs</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('my_applications') }}">My Applications</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('my_saved_jobs') }}">Saved Jobs</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('seeker_profile') }}">Update Profile</a>
                   </div>
                 </div>
               </div>

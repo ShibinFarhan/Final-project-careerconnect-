@@ -135,13 +135,12 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Active Job Postings</h5>
             <div class="d-flex gap-2">
-              <select class="form-select form-select-sm" style="width: 180px;">
-                <option selected>Sort by: Recently Posted</option>
-                <option>Most Applications</option>
-                <option>Job Title</option>
-                <option>Posted Date</option>
+              <select class="form-select form-select-sm" id="sortBy" style="width: 180px;" onchange="handleSort()">
+                <option value="recent" selected>Sort by: Recently Posted</option>
+                <option value="applications">Most Applications</option>
+                <option value="title">Job Title</option>
               </select>
-              <input class="form-control form-control-sm" style="width: 200px;" placeholder="Filter by job title" />
+              <input class="form-control form-control-sm" id="filterInput" style="width: 200px;" placeholder="Filter by job title" />
             </div>
           </div>
           <div class="row g-3" id="job-postings-container">
@@ -302,6 +301,80 @@
         // TODO: Load job postings from backend
         // TODO: Load recent applications from backend
         // TODO: Load shortlisted candidates from backend
+      });
+
+      // Handle sort dropdown with AJAX
+      function handleSort() {
+        const sortValue = document.getElementById('sortBy').value;
+        
+        fetch(`{{ url_for('get_jobs') }}?sort=${sortValue}`)
+          .then(response => response.json())
+          .then(data => {
+            const container = document.getElementById('job-postings-container');
+            
+            if (data.jobs && data.jobs.length > 0) {
+              let html = '';
+              data.jobs.forEach(job => {
+                const statusBadge = job.is_active === 1 
+                  ? '<span class="badge bg-success">Active</span>'
+                  : '<span class="badge bg-secondary">Inactive</span>';
+                const jobDetailsUrl = `/job/${job.id}`;
+                const viewAppUrl = `/recruiter/job/${job.id}/applications`;
+                const editUrl = `/recruiter/edit_job/${job.id}`;
+                const toggleUrl = `/recruiter/toggle_job_active/${job.id}`;
+                const deleteUrl = `/recruiter/delete_job/${job.id}`;
+                  
+                html += `
+                  <div class="col-lg-4 col-md-6">
+                    <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='${jobDetailsUrl}'" style="cursor: pointer;">
+                      <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                          <div>
+                            <h6 class="mb-1"><a href="${jobDetailsUrl}" class="text-decoration-none text-dark">${job.job_title}</a></h6>
+                            <small class="text-muted">${job.job_location}</small>
+                          </div>
+                          ${statusBadge}
+                        </div>
+                        <p class="small text-muted mt-2 mb-2"><strong>Experience:</strong> ${job.experience_level}</p>
+                        <p class="small text-muted mb-2"><strong>Type:</strong> ${job.employment_type}</p>
+                        ${job.salary_range ? `<p class="small text-muted mb-2"><strong>Salary:</strong> ${job.salary_range}</p>` : ''}
+                        <p class="small text-muted mb-2"><strong>Skills:</strong> ${job.required_skills}</p>
+                        <div class="d-flex flex-wrap gap-2">
+                          <a class="btn btn-sm btn-primary" href="${viewAppUrl}" onclick="event.stopPropagation();">View Applications</a>
+                          <a class="btn btn-sm btn-outline-secondary" href="${editUrl}" onclick="event.stopPropagation();">Edit</a>
+                          <form method="POST" action="${toggleUrl}" style="display:inline;" onclick="event.stopPropagation();">
+                            <button type="submit" class="btn btn-sm ${job.is_active === 1 ? 'btn-outline-warning' : 'btn-outline-success'}">${job.is_active === 1 ? 'Deactivate' : 'Activate'}</button>
+                          </form>
+                          <form method="POST" action="${deleteUrl}" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Delete this job? This cannot be undone.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              });
+              container.innerHTML = html;
+            } else {
+              container.innerHTML = '<div class="col-12"><p class="text-muted text-center py-4">No jobs found.</p></div>';
+            }
+          })
+          .catch(error => console.error('Error fetching jobs:', error));
+      }
+
+      // Handle filter input (client-side filtering)
+      document.getElementById('filterInput').addEventListener('keyup', function() {
+        const filterValue = this.value.toLowerCase();
+        const jobCards = document.querySelectorAll('#job-postings-container .col-lg-4');
+        
+        jobCards.forEach(card => {
+          const jobTitle = card.querySelector('h6 a').textContent.toLowerCase();
+          if (jobTitle.includes(filterValue)) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        });
       });
     </script>
   </body>

@@ -817,6 +817,7 @@ def seeker_profile():
 @login_required(role="recruiter")
 def recruiter_dashboard():
     user_id = session.get("user_id")
+    sort_by = request.args.get('sort', 'recent')  # Get sort parameter from query string
     conn = get_db()
     cursor = conn.cursor()
 
@@ -845,16 +846,46 @@ def recruiter_dashboard():
     hired_count = 0
     
     if profile and 'recruiter_id' in profile.keys() and profile['recruiter_id']:
-        job_postings = cursor.execute(
-            """
-            SELECT id, job_title, job_description, required_skills, experience_level, 
-                   salary_range, job_location, employment_type, is_active, created_at
-            FROM job_postings
-            WHERE recruiter_id = ?
-            ORDER BY created_at DESC
-            """,
-            (profile['recruiter_id'],),
-        ).fetchall()
+        # Determine ORDER BY clause based on sort_by parameter
+        if sort_by == 'applications':
+            # Sort by number of applications (most to least)
+            job_postings = cursor.execute(
+                """
+                SELECT jp.id, jp.job_title, jp.job_description, jp.required_skills, jp.experience_level, 
+                       jp.salary_range, jp.job_location, jp.employment_type, jp.is_active, jp.created_at,
+                       COUNT(a.id) as app_count
+                FROM job_postings jp
+                LEFT JOIN applications a ON jp.id = a.job_id
+                WHERE jp.recruiter_id = ?
+                GROUP BY jp.id
+                ORDER BY app_count DESC
+                """,
+                (profile['recruiter_id'],),
+            ).fetchall()
+        elif sort_by == 'title':
+            # Sort by job title (A-Z)
+            job_postings = cursor.execute(
+                """
+                SELECT id, job_title, job_description, required_skills, experience_level, 
+                       salary_range, job_location, employment_type, is_active, created_at
+                FROM job_postings
+                WHERE recruiter_id = ?
+                ORDER BY job_title ASC
+                """,
+                (profile['recruiter_id'],),
+            ).fetchall()
+        else:
+            # Default: sort by recent (newest first)
+            job_postings = cursor.execute(
+                """
+                SELECT id, job_title, job_description, required_skills, experience_level, 
+                       salary_range, job_location, employment_type, is_active, created_at
+                FROM job_postings
+                WHERE recruiter_id = ?
+                ORDER BY created_at DESC
+                """,
+                (profile['recruiter_id'],),
+            ).fetchall()
 
         active_postings_count = sum(1 for jp in job_postings if jp['is_active'] == 1)
 
@@ -1003,6 +1034,70 @@ def recruiter_dashboard():
         application_ats_scores=application_ats_scores,
         shortlisted_ats_scores=shortlisted_ats_scores
     )
+
+@app.route("/recruiter/get_jobs")
+@login_required(role="recruiter")
+def get_jobs():
+    """AJAX endpoint to fetch jobs with sorting"""
+    user_id = session.get("user_id")
+    sort_by = request.args.get('sort', 'recent')
+    conn = get_db()
+    cursor = conn.cursor()
+
+    profile = cursor.execute(
+        'SELECT id as recruiter_id FROM recruiters WHERE user_id = ?',
+        (user_id,)
+    ).fetchone()
+
+    if not profile:
+        return jsonify({'error': 'Recruiter not found'}), 404
+
+    recruiter_id = profile['recruiter_id']
+
+    # Determine ORDER BY clause based on sort_by parameter
+    if sort_by == 'applications':
+        job_postings = cursor.execute(
+            """
+            SELECT jp.id, jp.job_title, jp.job_description, jp.required_skills, jp.experience_level, 
+                   jp.salary_range, jp.job_location, jp.employment_type, jp.is_active, jp.created_at,
+                   COUNT(a.id) as app_count
+            FROM job_postings jp
+            LEFT JOIN applications a ON jp.id = a.job_id
+            WHERE jp.recruiter_id = ?
+            GROUP BY jp.id
+            ORDER BY app_count DESC
+            """,
+            (recruiter_id,),
+        ).fetchall()
+    elif sort_by == 'title':
+        job_postings = cursor.execute(
+            """
+            SELECT id, job_title, job_description, required_skills, experience_level, 
+                   salary_range, job_location, employment_type, is_active, created_at
+            FROM job_postings
+            WHERE recruiter_id = ?
+            ORDER BY job_title ASC
+            """,
+            (recruiter_id,),
+        ).fetchall()
+    else:
+        job_postings = cursor.execute(
+            """
+            SELECT id, job_title, job_description, required_skills, experience_level, 
+                   salary_range, job_location, employment_type, is_active, created_at
+            FROM job_postings
+            WHERE recruiter_id = ?
+            ORDER BY created_at DESC
+            """,
+            (recruiter_id,),
+        ).fetchall()
+
+    conn.close()
+
+    # Return jobs as JSON
+    return jsonify({
+        'jobs': [dict(job) for job in job_postings]
+    })
 
 @app.route("/recruiter/profile", methods=["GET", "POST"])
 @login_required(role="recruiter")
@@ -1720,6 +1815,151 @@ def save_job(job_id):
 def admin_dashboard():
     return render_template("admin_dashboard.html")
 
+@app.route("/seeker/all_jobs")
+@login_required(role="seeker")
+def all_jobs():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Fetch all active job postings
+    jobs = cursor.execute(
+        """
+        SELECT jp.id, jp.job_title, jp.job_location, jp.employment_type,
+               jp.experience_level, jp.salary_range, jp.required_skills,
+               jp.job_description, r.company_name,
+               CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END as already_applied,
+               CASE WHEN sj.id IS NOT NULL THEN 1 ELSE 0 END as is_saved
+        FROM job_postings jp
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        LEFT JOIN applications a ON a.job_id = jp.id AND a.seeker_id = (
+            SELECT id FROM job_seekers WHERE user_id = ?
+        )
+        LEFT JOIN saved_jobs sj ON sj.job_id = jp.id AND sj.seeker_id = (
+            SELECT id FROM job_seekers WHERE user_id = ?
+        )
+        WHERE jp.is_active = 1
+        ORDER BY jp.id DESC
+        """,
+        (user_id, user_id),
+    ).fetchall()
+
+    # Get seeker profile and resume skills
+    seeker = cursor.execute(
+        'SELECT id, primary_skills FROM job_seekers WHERE user_id = ?',
+        (user_id,)
+    ).fetchone()
+
+    seeker_skills = set()
+    if seeker:
+        if seeker['primary_skills']:
+            seeker_skills.update(skill.strip().lower() for skill in seeker['primary_skills'].split(','))
+        
+        # Add skills from resume if available
+        resume = cursor.execute(
+            'SELECT filename FROM resumes WHERE user_id = ?',
+            (user_id,)
+        ).fetchone()
+        
+        if resume:
+            resume_path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+            if os.path.exists(resume_path):
+                try:
+                    analysis_result = analyzer.analyze_resume_file(
+                        resume_path,
+                        profile_skills=seeker['primary_skills'] or '',
+                        experience_years=0,
+                    )
+                    if analysis_result and 'extracted_skills' in analysis_result:
+                        seeker_skills.update(skill.lower() for skill in analysis_result['extracted_skills'])
+                except Exception:
+                    pass
+
+    # Compute match scores
+    match_scores = {}
+    for job in jobs:
+        job_skills = set(skill.strip().lower() for skill in (job['required_skills'] or '').split(',') if skill.strip())
+        if job_skills:
+            matched = len(seeker_skills & job_skills)
+            match_percentage = round((matched / len(job_skills)) * 100)
+            match_scores[job['id']] = match_percentage
+        else:
+            match_scores[job['id']] = 0
+
+    conn.close()
+    return render_template("all_jobs.html", jobs=jobs or [], match_scores=match_scores)
+
+@app.route("/seeker/my_applications")
+@login_required(role="seeker")
+def my_applications():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    seeker = cursor.execute(
+        'SELECT id FROM job_seekers WHERE user_id = ?',
+        (user_id,)
+    ).fetchone()
+
+    if not seeker:
+        conn.close()
+        flash("Seeker profile not found.", "error")
+        return redirect(url_for("seeker_dashboard"))
+
+    # Fetch all applications for this seeker
+    applications = cursor.execute(
+        """
+        SELECT a.id, a.applied_at, a.status,
+               jp.job_title, jp.job_location, jp.employment_type,
+               r.company_name
+        FROM applications a
+        JOIN job_postings jp ON a.job_id = jp.id
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        WHERE a.seeker_id = ?
+        ORDER BY a.applied_at DESC
+        """,
+        (seeker['id'],)
+    ).fetchall()
+
+    conn.close()
+    return render_template("my_applications.html", applications=applications or [])
+
+@app.route("/seeker/my_saved_jobs")
+@login_required(role="seeker")
+def my_saved_jobs():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    seeker = cursor.execute(
+        'SELECT id FROM job_seekers WHERE user_id = ?',
+        (user_id,)
+    ).fetchone()
+
+    if not seeker:
+        conn.close()
+        flash("Seeker profile not found.", "error")
+        return redirect(url_for("seeker_dashboard"))
+
+    # Fetch all saved jobs for this seeker
+    saved_jobs = cursor.execute(
+        """
+        SELECT jp.id, jp.job_title, jp.job_location, jp.employment_type,
+               jp.experience_level, jp.salary_range, jp.required_skills,
+               r.company_name, sj.saved_at,
+               CASE WHEN a.id IS NOT NULL THEN 1 ELSE 0 END as already_applied
+        FROM saved_jobs sj
+        JOIN job_postings jp ON sj.job_id = jp.id
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        LEFT JOIN applications a ON a.job_id = jp.id AND a.seeker_id = ?
+        WHERE sj.seeker_id = ?
+        ORDER BY sj.saved_at DESC
+        """,
+        (seeker['id'], seeker['id'])
+    ).fetchall()
+
+    conn.close()
+    return render_template("my_saved_jobs.html", saved_jobs=saved_jobs or [])
 
 @app.route("/logout")
 def logout():

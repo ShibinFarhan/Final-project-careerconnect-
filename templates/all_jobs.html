@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>All Jobs | CareerConnect</title>
+    <!-- Bootstrap CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body style="background: #f5f7fb;">
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top" style="z-index: 1020;">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('seeker_dashboard') }}">CareerConnect</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#seekerNav" aria-controls="seekerNav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="seekerNav">
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="text-dark">All Available Jobs</h1>
+            <p class="text-muted">Browse all open job opportunities</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if jobs %}
+    <div class="row g-3">
+        {% for job in jobs %}
+        <div class="col-lg-6 col-xl-4">
+            <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="card-title mb-1">
+                                <a href="{{ url_for('job_details', job_id=job.id) }}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+                                    {{ job['job_title'] }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">{{ job['company_name'] }}</small>
+                        </div>
+                    </div>
+                    
+                    <p class="small text-muted mb-2">
+                        <i class="fas fa-map-marker-alt"></i> {{ job['job_location'] }}
+                    </p>
+                    
+                    <div class="row g-2 mb-2 small">
+                        <div class="col-6">
+                            <span class="badge bg-light text-dark">{{ job['employment_type'] }}</span>
+                        </div>
+                        <div class="col-6">
+                            <span class="badge bg-light text-dark">{{ job['experience_level'] }}</span>
+                        </div>
+                    </div>
+
+                    {% if job['salary_range'] %}
+                    <p class="small text-muted mb-2"><strong>Salary:</strong> {{ job['salary_range'] }}</p>
+                    {% endif %}
+
+                    <p class="small text-muted mb-3"><strong>Skills:</strong> {{ job['required_skills'] }}</p>
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <span class="badge bg-success">Match: {{ match_scores.get(job['id'], 0) }}%</span>
+                        {% if job['already_applied'] %}
+                            <span class="badge bg-primary">Applied</span>
+                        {% else %}
+                            <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();">
+                                <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                            </form>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('save_job', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();">
+                            <button type="submit" class="btn btn-sm {{ 'btn-warning' if job['is_saved'] else 'btn-outline-warning' }}">
+                                <i class="fas fa-bookmark"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle"></i> No jobs available at the moment.
+    </div>
+    {% endif %}
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9u7t1ToMVj0u5WIDIW+lKKJFBIkGE4j7Kd6n2UXXHWzEKVsKDTNM2yyV" crossorigin="anonymous"></script>
+</body>
+</html>
