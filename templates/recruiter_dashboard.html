@@ -86,21 +86,25 @@
                     <span class="badge bg-primary bg-opacity-10 text-primary">This Month</span>
                   </div>
                   <div class="row g-3 small">
-                    <div class="col-6">
+                    <div class="col-4">
                       <div class="text-muted">Job Postings</div>
                       <div class="display-6 fw-bold text-primary" id="total-postings">{{ job_postings|length if job_postings else 0 }}</div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                       <div class="text-muted">Total Applications</div>
-                      <div class="display-6 fw-bold text-success" id="total-applications">0</div>
+                      <div class="display-6 fw-bold text-secondary" id="total-applications">{{ total_applications }}</div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                       <div class="text-muted">Shortlisted</div>
-                      <div class="display-6 fw-bold text-info" id="shortlisted-count">0</div>
+                      <div class="display-6 fw-bold text-info" id="shortlisted-count">{{ shortlisted_count }}</div>
                     </div>
-                    <div class="col-6">
+                    <div class="col-4">
                       <div class="text-muted">Rejected</div>
-                      <div class="display-6 fw-bold text-danger" id="rejected-count">0</div>
+                      <div class="display-6 fw-bold text-danger" id="rejected-count">{{ rejected_count }}</div>
+                    </div>
+                    <div class="col-4">
+                      <div class="text-muted">Hired</div>
+                      <div class="display-6 fw-bold text-success" id="hired-count">{{ hired_count }}</div>
                     </div>
                   </div>
                 </div>
@@ -145,11 +149,11 @@
             {% if job_postings and job_postings|length > 0 %}
               {% for job in job_postings %}
               <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-0 shadow-sm">
+                <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
                   <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                       <div>
-                        <h6 class="mb-1">{{ job.job_title }}</h6>
+                        <h6 class="mb-1"><a href="{{ url_for('job_details', job_id=job.id) }}" class="text-decoration-none text-dark">{{ job.job_title }}</a></h6>
                         <small class="text-muted">{{ job.job_location }}</small>
                       </div>
                       <span class="badge bg-success">Active</span>
@@ -161,8 +165,8 @@
                     {% endif %}
                     <p class="small text-muted mb-2"><strong>Skills:</strong> {{ job.required_skills }}</p>
                     <div class="d-flex gap-2">
-                      <button class="btn btn-sm btn-primary">View Applications</button>
-                      <button class="btn btn-sm btn-outline-secondary">Edit</button>
+                      <a class="btn btn-sm btn-primary" href="{{ url_for('recruiter_job_applications', job_id=job.id) }}" onclick="event.stopPropagation();">View Applications</a>
+                      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('edit_job', job_id=job.id) }}" onclick="event.stopPropagation();">Edit</a>
                     </div>
                   </div>
                 </div>
@@ -224,7 +228,7 @@
                         <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
                         <td><span class="badge bg-primary bg-opacity-10 text-primary">--</span></td>
                         <td>
-                          <button class="btn btn-sm btn-outline-primary">View Resume</button>
+                          <a href="{{ url_for('view_candidate', seeker_user_id=app.seeker_user_id, application_id=app.id) }}" class="btn btn-sm btn-outline-primary">View Resume</a>
                         </td>
                       </tr>
                       {% endfor %}

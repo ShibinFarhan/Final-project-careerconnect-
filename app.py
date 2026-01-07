@@ -785,6 +785,11 @@ def recruiter_dashboard():
     # fetch job postings for this recruiter
     job_postings = []
     applications = []
+    total_applications = 0
+    shortlisted_count = 0
+    rejected_count = 0
+    hired_count = 0
+    
     if profile and 'recruiter_id' in profile.keys() and profile['recruiter_id']:
         job_postings = cursor.execute(
             """
@@ -813,13 +818,63 @@ def recruiter_dashboard():
             (profile['recruiter_id'],),
         ).fetchall()
 
+        # calculate hiring pipeline metrics
+        total_applications = cursor.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            WHERE jp.recruiter_id = ?
+            """,
+            (profile['recruiter_id'],),
+        ).fetchone()['count']
+
+        shortlisted_count = cursor.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            WHERE jp.recruiter_id = ? AND a.status = 'shortlisted'
+            """,
+            (profile['recruiter_id'],),
+        ).fetchone()['count']
+
+        rejected_count = cursor.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            WHERE jp.recruiter_id = ? AND a.status = 'rejected'
+            """,
+            (profile['recruiter_id'],),
+        ).fetchone()['count']
+
+        hired_count = cursor.execute(
+            """
+            SELECT COUNT(*) as count
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            WHERE jp.recruiter_id = ? AND a.status = 'hired'
+            """,
+            (profile['recruiter_id'],),
+        ).fetchone()['count']
+
     conn.close()
 
     if not profile:
         flash("No recruiter profile found.", "error")
         profile = {}
 
-    return render_template("recruiter_dashboard.html", profile=profile, job_postings=job_postings or [], applications=applications or [])
+    return render_template(
+        "recruiter_dashboard.html", 
+        profile=profile, 
+        job_postings=job_postings or [], 
+        applications=applications or [],
+        total_applications=total_applications,
+        shortlisted_count=shortlisted_count,
+        rejected_count=rejected_count,
+        hired_count=hired_count
+    )
 
 @app.route("/recruiter/profile", methods=["GET", "POST"])
 @login_required(role="recruiter")
@@ -926,6 +981,112 @@ def post_job():
 
     return render_template("post_job.html")
 
+@app.route("/recruiter/job/<int:job_id>/applications")
+@login_required(role="recruiter")
+def recruiter_job_applications(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Ensure this job belongs to the logged-in recruiter
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        flash("Recruiter profile not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    job = cursor.execute(
+        """
+        SELECT jp.id, jp.job_title, jp.job_location, jp.employment_type, jp.experience_level,
+               jp.salary_range, jp.required_skills, jp.job_description, jp.created_at
+        FROM job_postings jp
+        WHERE jp.id = ? AND jp.recruiter_id = ?
+        """,
+        (job_id, recruiter['id'])
+    ).fetchone()
+
+    if not job:
+        conn.close()
+        flash("Job not found or you do not have access.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    applications = cursor.execute(
+        """
+        SELECT a.id, a.status, a.applied_at,
+               js.full_name as candidate_name, js.email as candidate_email,
+               js.user_id as seeker_user_id
+        FROM applications a
+        JOIN job_seekers js ON a.seeker_id = js.id
+        WHERE a.job_id = ?
+        ORDER BY a.applied_at DESC
+        """,
+        (job_id,)
+    ).fetchall()
+
+    conn.close()
+
+    return render_template("job_applications.html", job=job, applications=applications or [])
+
+@app.route("/recruiter/edit_job/<int:job_id>", methods=["GET", "POST"])
+@login_required(role="recruiter")
+def edit_job(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        flash("Recruiter profile not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    job = cursor.execute(
+        "SELECT * FROM job_postings WHERE id = ? AND recruiter_id = ?",
+        (job_id, recruiter['id'])
+    ).fetchone()
+
+    if not job:
+        conn.close()
+        flash("Job not found or you do not have access.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    if request.method == "POST":
+        job_title = request.form.get("job_title")
+        job_description = request.form.get("job_description")
+        required_skills = request.form.get("required_skills")
+        experience_level = request.form.get("experience_level")
+        salary_range = request.form.get("salary_range")
+        job_location = request.form.get("job_location")
+        employment_type = request.form.get("employment_type")
+
+        if not all([job_title, job_description, required_skills, experience_level, job_location, employment_type]):
+            flash("All fields are required", "error")
+            conn.close()
+            return render_template("edit_job.html", job=job)
+
+        try:
+            cursor.execute(
+                """
+                UPDATE job_postings
+                SET job_title = ?, job_description = ?, required_skills = ?, experience_level = ?,
+                    salary_range = ?, job_location = ?, employment_type = ?
+                WHERE id = ? AND recruiter_id = ?
+                """,
+                (job_title, job_description, required_skills, experience_level, salary_range, job_location, employment_type, job_id, recruiter['id'])
+            )
+            conn.commit()
+            flash("Job updated successfully!", "success")
+            conn.close()
+            return redirect(url_for("recruiter_dashboard"))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Failed to update job: {str(e)}", "error")
+            conn.close()
+            return render_template("edit_job.html", job=job)
+
+    conn.close()
+    return render_template("edit_job.html", job=job)
+
 @app.route("/seeker/apply/<int:job_id>", methods=["POST"])
 @login_required(role="seeker")
 def apply_job(job_id):
@@ -968,6 +1129,150 @@ def apply_job(job_id):
         conn.close()
 
     return redirect(url_for("seeker_dashboard"))
+
+@app.route("/recruiter/view_candidate/<int:seeker_user_id>")
+@login_required(role="recruiter")
+def view_candidate(seeker_user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get application_id from query param (if viewing from specific application)
+    application_id = request.args.get('application_id', type=int)
+
+    # Fetch candidate profile
+    candidate = cursor.execute(
+        """
+        SELECT js.id, js.full_name, js.email, js.education, js.experience_years, js.primary_skills,
+               u.username
+        FROM job_seekers js
+        JOIN users u ON js.user_id = u.id
+        WHERE u.id = ?
+        """,
+        (seeker_user_id,),
+    ).fetchone()
+
+    if not candidate:
+        conn.close()
+        flash("Candidate not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    # Fetch application details if application_id provided
+    application = None
+    if application_id:
+        application = cursor.execute(
+            """
+            SELECT a.id, a.status, a.applied_at, jp.job_title
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            WHERE a.id = ?
+            """,
+            (application_id,)
+        ).fetchone()
+
+    # Fetch resume
+    resume = cursor.execute(
+        'SELECT filename, original_filename, job_role FROM resumes WHERE user_id = ?',
+        (seeker_user_id,)
+    ).fetchone()
+
+    analysis = None
+    if resume:
+        try:
+            path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+            analysis = analyzer.analyze_resume_file(
+                path,
+                profile_skills=(candidate['primary_skills'] if candidate else ''),
+                experience_years=(candidate['experience_years'] if candidate else 0),
+                education=(candidate['education'] if candidate else '')
+            )
+        except Exception:
+            analysis = None
+
+    conn.close()
+
+    return render_template(
+        "view_candidate.html",
+        candidate=candidate,
+        resume=resume,
+        analysis=analysis,
+        application=application
+    )
+
+@app.route("/recruiter/update_application_status/<int:application_id>", methods=["POST"])
+@login_required(role="recruiter")
+def update_application_status(application_id):
+    status = request.form.get("status")
+    
+    if status not in ['applied', 'shortlisted', 'rejected', 'hired']:
+        flash("Invalid status.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            'UPDATE applications SET status = ? WHERE id = ?',
+            (status, application_id)
+        )
+        conn.commit()
+        flash(f"Application status updated to {status}!", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Failed to update status: {str(e)}", "error")
+    finally:
+        conn.close()
+
+    # Redirect back to the candidate view if coming from there
+    referer = request.referrer
+    if referer and 'view_candidate' in referer:
+        return redirect(referer)
+    
+    return redirect(url_for("recruiter_dashboard"))
+
+@app.route("/job/<int:job_id>")
+@login_required()
+def job_details(job_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    job = cursor.execute(
+        """
+        SELECT jp.*, r.company_name, r.industry_type, r.company_location
+        FROM job_postings jp
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        WHERE jp.id = ?
+        """,
+        (job_id,)
+    ).fetchone()
+
+    if not job:
+        conn.close()
+        flash("Job not found.", "error")
+        return redirect(url_for("seeker_dashboard"))
+
+    # Check if current user has applied (only for seekers)
+    has_applied = False
+    is_saved = False
+    if session.get('role') == 'seeker':
+        user_id = session.get('user_id')
+        seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+        if seeker:
+            application = cursor.execute(
+                'SELECT id FROM applications WHERE job_id = ? AND seeker_id = ?',
+                (job_id, seeker['id'])
+            ).fetchone()
+            has_applied = application is not None
+
+            saved = cursor.execute(
+                'SELECT id FROM saved_jobs WHERE job_id = ? AND seeker_id = ?',
+                (job_id, seeker['id'])
+            ).fetchone()
+            is_saved = saved is not None
+
+    conn.close()
+
+    return render_template("job_details.html", job=job, has_applied=has_applied, is_saved=is_saved)
 
 @app.route("/seeker/save_job/<int:job_id>", methods=["POST"])
 @login_required(role="seeker")
