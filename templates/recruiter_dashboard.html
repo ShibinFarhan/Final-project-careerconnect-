@@ -213,7 +213,7 @@
                       <th>Job Role</th>
                       <th>Status</th>
                       <th>Applied</th>
-                      <th>ATS Score</th>
+                      <th>Match %</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -236,8 +236,8 @@
                         </td>
                         <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
                         <td>
-                          {% if application_ats_scores and app.id in application_ats_scores %}
-                            <span class="badge bg-success">{{ application_ats_scores[app.id] }}</span>
+                          {% if application_match_scores and app.id in application_match_scores %}
+                            <span class="badge bg-success">{{ application_match_scores[app.id] }}%</span>
                           {% else %}
                             <span class="badge bg-secondary">--</span>
                           {% endif %}

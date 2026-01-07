@@ -907,29 +907,27 @@ def recruiter_dashboard():
             (profile['recruiter_id'],),
         ).fetchall()
         
-        # Compute ATS scores for applications
-        application_ats_scores = {}
+        # Compute match scores for applications (skill overlap percentage)
+        application_match_scores = {}
         for application in applications:
             try:
-                # Get resume for this candidate
-                resume = cursor.execute(
-                    'SELECT filename FROM resumes WHERE user_id = ?',
-                    (application['seeker_user_id'],)
-                ).fetchone()
+                # Get candidate's skills
+                candidate_skills = set()
+                if application['primary_skills']:
+                    candidate_skills.update(skill.strip().lower() for skill in application['primary_skills'].split(','))
                 
-                if resume:
-                    resume_path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
-                    if os.path.exists(resume_path):
-                        analysis_result = analyzer.analyze_resume_file(
-                            resume_path,
-                            profile_skills=application['primary_skills'] or '',
-                            experience_years=application['experience_years'] or 0,
-                            education=application['education'] or ''
-                        )
-                        if analysis_result and 'ats' in analysis_result:
-                            application_ats_scores[application['id']] = analysis_result['ats']['ats_score']
+                # Get job's required skills
+                job_skills = set(skill.strip().lower() for skill in (application['required_skills'] or '').split(',') if skill.strip())
+                
+                # Calculate match percentage
+                if job_skills:
+                    matched = len(candidate_skills & job_skills)
+                    match_percentage = round((matched / len(job_skills)) * 100)
+                    application_match_scores[application['id']] = match_percentage
+                else:
+                    application_match_scores[application['id']] = 0
             except Exception:
-                pass  # Skip if analysis fails
+                application_match_scores[application['id']] = 0
 
         # fetch shortlisted candidates
         shortlisted_candidates = cursor.execute(
@@ -1031,7 +1029,7 @@ def recruiter_dashboard():
         shortlisted_count=shortlisted_count,
         rejected_count=rejected_count,
         hired_count=hired_count,
-        application_ats_scores=application_ats_scores,
+        application_match_scores=application_match_scores,
         shortlisted_ats_scores=shortlisted_ats_scores
     )
 
