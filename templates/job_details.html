@@ -70,6 +70,21 @@
                   <button class="btn btn-outline-secondary save-btn" data-job-id="{{ job.id }}">Save Job</button>
                 {% endif %}
               </div>
+              {% elif session.role == 'recruiter' %}
+              <div class="d-grid gap-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="badge {{ 'bg-success' if job.is_active == 1 else 'bg-secondary' }}">{{ 'Active' if job.is_active == 1 else 'Inactive' }}</span>
+                  <small class="text-muted">Posted: {{ job.created_at[:10] if job.created_at else '-' }}</small>
+                </div>
+                <a class="btn btn-primary" href="{{ url_for('recruiter_job_applications', job_id=job.id) }}">View Applications</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('edit_job', job_id=job.id) }}">Edit Job</a>
+                <form method="POST" action="{{ url_for('toggle_job_active', job_id=job.id) }}" style="display:inline;">
+                  <button type="submit" class="btn {{ 'btn-outline-warning' if job.is_active == 1 else 'btn-outline-success' }}">{{ 'Deactivate' if job.is_active == 1 else 'Activate' }}</button>
+                </form>
+                <form method="POST" action="{{ url_for('delete_job', job_id=job.id) }}" style="display:inline;" onsubmit="return confirm('Delete this job? This cannot be undone.');">
+                  <button type="submit" class="btn btn-outline-danger">Delete</button>
+                </form>
+              </div>
               {% endif %}
             </div>
           </div>

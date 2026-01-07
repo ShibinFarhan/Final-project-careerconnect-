@@ -97,20 +97,20 @@
                     <span class="badge bg-primary bg-opacity-10 text-primary">Latest</span>
                   </div>
                   <div class="d-flex align-items-center my-3">
-                    {% if analysis %}
-                    <div id="ats-score" class="display-6 fw-bold text-primary me-3">{{ analysis.ats.ats_score }}</div>
+                    {% if analysis and 'ats' in analysis and 'ats_score' in analysis['ats'] %}
+                    <div id="ats-score" class="display-6 fw-bold text-primary me-3">{{ analysis['ats']['ats_score'] }}</div>
                     <div class="small text-muted">ATS Score</div>
                     {% else %}
-                    <div id="ats-score" class="display-6 fw-bold text-primary me-3">--</div>
-                    <div class="small text-muted">ATS Score</div>
+                    <div id="ats-score" class="display-6 fw-bold text-muted me-3">--</div>
+                    <div class="small text-muted">ATS Score (No Analysis)</div>
                     {% endif %}
                   </div>
                   <div class="small">
-                    {% if analysis %}
-                      <p class="mb-1"><strong>Extracted skills:</strong> <span id="extracted-skills">{{ analysis.extracted_skills | join(', ') }}</span></p>
-                      <p class="mb-1"><strong>Missing skills:</strong> <span id="missing-skills">{{ analysis.ats.missing_skills | join(', ') if analysis.ats.missing_skills else 'None' }}</span></p>
-                      {% if analysis.suggestions %}
-                        <p class="mb-1"><strong>Suggestions:</strong> <span id="suggestions">{{ analysis.suggestions | join('; ') }}</span></p>
+                    {% if analysis and 'extracted_skills' in analysis %}
+                      <p class="mb-1"><strong>Extracted skills:</strong> <span id="extracted-skills">{{ analysis['extracted_skills'] | join(', ') }}</span></p>
+                      <p class="mb-1"><strong>Missing skills:</strong> <span id="missing-skills">{{ analysis['ats']['missing_skills'] | join(', ') if 'ats' in analysis and 'missing_skills' in analysis['ats'] and analysis['ats']['missing_skills'] else 'None' }}</span></p>
+                      {% if 'suggestions' in analysis and analysis['suggestions'] %}
+                        <p class="mb-1"><strong>Suggestions:</strong> <span id="suggestions">{{ analysis['suggestions'] | join('; ') }}</span></p>
                       {% else %}
                         <p class="mb-1"><strong>Suggestions:</strong> <span id="suggestions">None</span></p>
                       {% endif %}
@@ -170,7 +170,12 @@
                         <h6 class="mb-1"><a href="{{ url_for('job_details', job_id=job.id) }}" class="text-decoration-none text-dark">{{ job.job_title }}</a></h6>
                         <small class="text-muted">{{ job.company_name }} • {{ job.job_location }}</small>
                       </div>
-                      <span class="badge bg-primary bg-opacity-10 text-primary">Match --</span>
+                      {% set match = match_scores.get(job.id) %}
+                      {% if match is not none %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary">Match {{ match }}%</span>
+                      {% else %}
+                        <span class="badge bg-secondary bg-opacity-10 text-muted">Match --</span>
+                      {% endif %}
                     </div>
                     <p class="small text-muted mt-2 mb-2">{{ job.required_skills | truncate(60) }}</p>
                     <div class="d-flex gap-2">
@@ -244,7 +249,14 @@
                           {% endif %}
                         </td>
                         <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
-                        <td><span class="badge bg-primary bg-opacity-10 text-primary">--</span></td>
+                        {% set app_match = application_match_scores.get(app.id) if application_match_scores is defined else None %}
+                        <td>
+                          {% if app_match is not none %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary">{{ app_match }}%</span>
+                          {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-muted">--</span>
+                          {% endif %}
+                        </td>
                       </tr>
                       {% endfor %}
                     {% else %}

@@ -536,15 +536,28 @@ def seeker_dashboard():
     # run analyzer if resume exists
     analysis = None
     if resume:
-        try:
-            # get seeker profile basics
-            prof = cursor.execute('SELECT education, experience_years, primary_skills FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
-            path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
-            analysis = analyzer.analyze_resume_file(path, profile_skills=(prof['primary_skills'] if prof else ''), experience_years=(prof['experience_years'] if prof else 0), education=(prof['education'] if prof else ''))
-        except Exception:
+        # get seeker profile basics
+        prof = cursor.execute('SELECT education, experience_years, primary_skills FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+        path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+        
+        # Check if file exists
+        if os.path.exists(path):
+            try:
+                analysis = analyzer.analyze_resume_file(
+                    path, 
+                    profile_skills=(prof['primary_skills'] if prof and prof['primary_skills'] else ''), 
+                    experience_years=(prof['experience_years'] if prof and prof['experience_years'] else 0), 
+                    education=(prof['education'] if prof and prof['education'] else '')
+                )
+                print(f"DEBUG: Analysis successful - ATS Score: {analysis.get('ats', {}).get('ats_score', 'N/A')}")
+            except Exception as e:
+                print(f"ERROR: Analysis failed - {str(e)}")
+                import traceback
+                traceback.print_exc()
+                analysis = None
+        else:
+            print(f"ERROR: Resume file not found at {path}")
             analysis = None
-            # optional job role
-            job_role = request.form.get('job_role')
 
     # fetch all active job postings
     job_postings = cursor.execute(
@@ -560,17 +573,39 @@ def seeker_dashboard():
         """
     ).fetchall()
 
+    # build seeker skill set (profile + extracted skills)
+    seeker_skills = set()
+    if profile and 'primary_skills' in profile.keys() and profile['primary_skills']:
+        seeker_skills.update([s.strip().lower() for s in profile['primary_skills'].split(',') if s.strip()])
+    if analysis and isinstance(analysis, dict) and analysis.get('extracted_skills'):
+        seeker_skills.update([s.strip().lower() for s in analysis['extracted_skills'] if s.strip()])
+
+    def compute_match_score(required_skills):
+        req = [s.strip().lower() for s in (required_skills or '').split(',') if s.strip()]
+        if not req or not seeker_skills:
+            return None
+        matched = len([s for s in req if s in seeker_skills])
+        score = int(round((matched / max(len(req), 1)) * 100))
+        return score
+
+    # compute match scores for job postings; applications/saved handled after fetch
+    match_scores = {}
+    for jp in job_postings:
+        match_scores[jp['id']] = compute_match_score(jp['required_skills'])
+
     # fetch seeker's applications
     applications = []
     applied_job_ids = []
     saved_job_ids = []
     saved_jobs = []
+    application_match_scores = {}
     seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
     if seeker:
         applications = cursor.execute(
             """
-            SELECT a.id, a.status, a.applied_at,
-                   jp.job_title, r.company_name
+            SELECT a.id, a.status, a.applied_at, a.job_id,
+                   jp.job_title, jp.required_skills,
+                   r.company_name
             FROM applications a
             JOIN job_postings jp ON a.job_id = jp.id
             JOIN job_seekers js ON a.seeker_id = js.id
@@ -582,14 +617,14 @@ def seeker_dashboard():
         ).fetchall()
         
         # get list of job IDs already applied to
-        applied_job_ids = [app['id'] for app in cursor.execute(
+        applied_job_ids = [application['id'] for application in cursor.execute(
             'SELECT job_id as id FROM applications WHERE seeker_id = ?', (seeker['id'],)
         ).fetchall()]
 
         # get saved jobs
         saved_jobs = cursor.execute(
             """
-            SELECT jp.id, jp.job_title, jp.job_location, r.company_name
+            SELECT jp.id, jp.job_title, jp.job_location, jp.required_skills, r.company_name
             FROM saved_jobs sj
             JOIN job_postings jp ON sj.job_id = jp.id
             JOIN recruiters r ON jp.recruiter_id = r.id
@@ -603,13 +638,30 @@ def seeker_dashboard():
             'SELECT job_id as id FROM saved_jobs WHERE seeker_id = ?', (seeker['id'],)
         ).fetchall()]
 
+        # compute match scores for applications now that we have them
+        for application in applications:
+            application_match_scores[application['id']] = compute_match_score(application['required_skills'])
+
     conn.close()
 
     if not profile:
         flash("No profile found. Please complete your profile.", "error")
         profile = {}
 
-    return render_template("seeker_dashboard.html", profile=profile, resume=resume, analysis=analysis, selected_role=selected_role, job_postings=job_postings or [], applications=applications or [], applied_job_ids=applied_job_ids, saved_jobs=saved_jobs or [], saved_job_ids=saved_job_ids)
+    return render_template(
+        "seeker_dashboard.html",
+        profile=profile,
+        resume=resume,
+        analysis=analysis,
+        selected_role=selected_role,
+        job_postings=job_postings or [],
+        applications=applications or [],
+        applied_job_ids=applied_job_ids,
+        saved_jobs=saved_jobs or [],
+        saved_job_ids=saved_job_ids,
+        match_scores=match_scores,
+        application_match_scores=application_match_scores,
+    )
 
 
 @app.route('/seeker/analysis/rerun', methods=['POST'])
@@ -785,6 +837,8 @@ def recruiter_dashboard():
     # fetch job postings for this recruiter
     job_postings = []
     applications = []
+    shortlisted_candidates = []
+    active_postings_count = 0
     total_applications = 0
     shortlisted_count = 0
     rejected_count = 0
@@ -796,11 +850,13 @@ def recruiter_dashboard():
             SELECT id, job_title, job_description, required_skills, experience_level, 
                    salary_range, job_location, employment_type, is_active, created_at
             FROM job_postings
-            WHERE recruiter_id = ? AND is_active = 1
+            WHERE recruiter_id = ?
             ORDER BY created_at DESC
             """,
             (profile['recruiter_id'],),
         ).fetchall()
+
+        active_postings_count = sum(1 for jp in job_postings if jp['is_active'] == 1)
 
         # fetch applications for recruiter's jobs
         applications = cursor.execute(
@@ -814,6 +870,23 @@ def recruiter_dashboard():
             WHERE jp.recruiter_id = ?
             ORDER BY a.applied_at DESC
             LIMIT 20
+            """,
+            (profile['recruiter_id'],),
+        ).fetchall()
+
+        # fetch shortlisted candidates
+        shortlisted_candidates = cursor.execute(
+            """
+            SELECT a.id, a.applied_at,
+                   jp.job_title,
+                   js.full_name as candidate_name, js.email as candidate_email,
+                   js.user_id as seeker_user_id
+            FROM applications a
+            JOIN job_postings jp ON a.job_id = jp.id
+            JOIN job_seekers js ON a.seeker_id = js.id
+            WHERE jp.recruiter_id = ? AND a.status = 'shortlisted'
+            ORDER BY a.applied_at DESC
+            LIMIT 10
             """,
             (profile['recruiter_id'],),
         ).fetchall()
@@ -870,6 +943,8 @@ def recruiter_dashboard():
         profile=profile, 
         job_postings=job_postings or [], 
         applications=applications or [],
+        shortlisted_candidates=shortlisted_candidates or [],
+        active_postings_count=active_postings_count,
         total_applications=total_applications,
         shortlisted_count=shortlisted_count,
         rejected_count=rejected_count,
@@ -1086,6 +1161,72 @@ def edit_job(job_id):
 
     conn.close()
     return render_template("edit_job.html", job=job)
+
+@app.route("/recruiter/toggle_job_active/<int:job_id>", methods=["POST"])
+@login_required(role="recruiter")
+def toggle_job_active(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        flash("Recruiter profile not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    job = cursor.execute('SELECT id, is_active FROM job_postings WHERE id = ? AND recruiter_id = ?', (job_id, recruiter['id'])).fetchone()
+    if not job:
+        conn.close()
+        flash("Job not found or you do not have access.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    try:
+        new_status = 0 if job['is_active'] == 1 else 1
+        cursor.execute('UPDATE job_postings SET is_active = ? WHERE id = ?', (new_status, job_id))
+        conn.commit()
+        flash("Job status updated.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Failed to update status: {str(e)}", "error")
+    finally:
+        conn.close()
+
+    return redirect(url_for("recruiter_dashboard"))
+
+@app.route("/recruiter/delete_job/<int:job_id>", methods=["POST"])
+@login_required(role="recruiter")
+def delete_job(job_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        flash("Recruiter profile not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    job = cursor.execute('SELECT id FROM job_postings WHERE id = ? AND recruiter_id = ?', (job_id, recruiter['id'])).fetchone()
+    if not job:
+        conn.close()
+        flash("Job not found or you do not have access.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    try:
+        # Remove related applications and saved jobs to avoid orphans
+        cursor.execute('DELETE FROM applications WHERE job_id = ?', (job_id,))
+        cursor.execute('DELETE FROM saved_jobs WHERE job_id = ?', (job_id,))
+        cursor.execute('DELETE FROM job_postings WHERE id = ?', (job_id,))
+        conn.commit()
+        flash("Job deleted successfully.", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"Failed to delete job: {str(e)}", "error")
+    finally:
+        conn.close()
+
+    return redirect(url_for("recruiter_dashboard"))
 
 @app.route("/seeker/apply/<int:job_id>", methods=["POST"])
 @login_required(role="seeker")

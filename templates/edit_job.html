@@ -13,8 +13,19 @@
           <div class="card shadow-sm">
             <div class="card-body p-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="mb-0">Edit Job</h4>
-                <a href="{{ url_for('recruiter_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back</a>
+                <div>
+                  <h4 class="mb-0">Edit Job</h4>
+                  <div class="small text-muted">Status: <span class="badge {{ 'bg-success' if job.is_active == 1 else 'bg-secondary' }}">{{ 'Active' if job.is_active == 1 else 'Inactive' }}</span></div>
+                </div>
+                <div class="d-flex gap-2">
+                  <a href="{{ url_for('recruiter_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back</a>
+                  <form method="POST" action="{{ url_for('toggle_job_active', job_id=job.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-outline-warning btn-sm">{{ 'Deactivate' if job.is_active == 1 else 'Activate' }}</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('delete_job', job_id=job.id) }}" style="display:inline;" onsubmit="return confirm('Delete this job? This cannot be undone.');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                  </form>
+                </div>
               </div>
 
               {% with messages = get_flashed_messages(with_categories=true) %}
