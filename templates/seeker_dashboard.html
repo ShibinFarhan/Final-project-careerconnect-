@@ -149,20 +149,16 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Recommended Jobs</h5>
-            <div class="d-flex gap-2">
-              <select class="form-select form-select-sm" style="width: 180px;">
-                <option selected>Sort by: Recently Posted</option>
-                <option>Job Title</option>
-                <option>Location</option>
-                <option>Experience Level</option>
-              </select>
-              <input class="form-control form-control-sm" style="width: 200px;" placeholder="Filter by skill or title" />
-            </div>
+            <select class="form-select form-select-sm" id="sortJobsSeeker" style="width: 200px;">
+              <option value="recent" selected>Sort by: Recently Posted</option>
+              <option value="match">Match %</option>
+              <option value="title">Job Title</option>
+            </select>
           </div>
-          <div class="row g-3">
+          <div class="row g-3" id="seeker-jobs-container">
             {% if job_postings and job_postings|length > 0 %}
               {% for job in job_postings %}
-              <div class="col-lg-4 col-md-6">
+              <div class="col-lg-4 col-md-6" data-title="{{ job.job_title|lower }}" data-match="{{ match_scores.get(job.id, 0) }}" data-skills="{{ job.required_skills|lower }}">
                 <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
                   <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -538,6 +534,36 @@
           });
         });
       })();
+
+      // Sort jobs on seeker dashboard
+      document.addEventListener('DOMContentLoaded', function() {
+        const sortSelect = document.getElementById('sortJobsSeeker');
+        
+        if (!sortSelect) return;
+
+        // Sort functionality
+        sortSelect.addEventListener('change', function() {
+          const sortValue = this.value;
+          const container = document.getElementById('seeker-jobs-container');
+          const jobCards = Array.from(container.querySelectorAll('.col-lg-4.col-md-6'));
+          
+          jobCards.sort((a, b) => {
+            if (sortValue === 'match') {
+              const matchA = parseInt(a.getAttribute('data-match')) || 0;
+              const matchB = parseInt(b.getAttribute('data-match')) || 0;
+              return matchB - matchA;
+            } else if (sortValue === 'title') {
+              const titleA = a.getAttribute('data-title') || '';
+              const titleB = b.getAttribute('data-title') || '';
+              return titleA.localeCompare(titleB);
+            }
+            return 0; // 'recent' keeps original order
+          });
+          
+          // Re-append sorted cards
+          jobCards.forEach(card => container.appendChild(card));
+        });
+      });
     </script>
 
 

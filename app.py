@@ -1922,6 +1922,43 @@ def my_applications():
     conn.close()
     return render_template("my_applications.html", applications=applications or [])
 
+@app.route("/seeker/withdraw_application/<int:application_id>", methods=["POST"])
+@login_required(role="seeker")
+def withdraw_application(application_id):
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Verify the application belongs to this seeker
+    application = cursor.execute(
+        """
+        SELECT a.id, a.status, js.user_id
+        FROM applications a
+        JOIN job_seekers js ON a.seeker_id = js.id
+        WHERE a.id = ? AND js.user_id = ?
+        """,
+        (application_id, user_id)
+    ).fetchone()
+
+    if not application:
+        conn.close()
+        flash("Application not found.", "error")
+        return redirect(url_for("my_applications"))
+
+    # Only allow withdrawal if status is 'applied' (not shortlisted/hired/rejected)
+    if application['status'] != 'applied':
+        conn.close()
+        flash("Cannot withdraw application with current status.", "error")
+        return redirect(url_for("my_applications"))
+
+    # Delete the application
+    cursor.execute('DELETE FROM applications WHERE id = ?', (application_id,))
+    conn.commit()
+    conn.close()
+
+    flash("Application withdrawn successfully.", "success")
+    return redirect(url_for("my_applications"))
+
 @app.route("/seeker/my_saved_jobs")
 @login_required(role="seeker")
 def my_saved_jobs():
