@@ -40,6 +40,41 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+# --- Session helpers ---
+@app.before_request
+def ensure_valid_session():
+    """
+    Keep session data consistent and avoid stale cookies that can flip roles
+    or point to deleted users.
+    """
+    # Skip static and auth endpoints to avoid redirect loops
+    if request.endpoint in (
+        'static',
+        'login',
+        'register_choice',
+        'register_seeker',
+        'register_company',
+    ):
+        return
+
+    user_id = session.get('user_id')
+    if not user_id:
+        return
+
+    conn = get_db()
+    cursor = conn.cursor()
+    user = cursor.execute('SELECT id, username, role FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+
+    if not user:
+        session.clear()
+        flash("Your session expired. Please log in again.", "error")
+        return redirect(url_for('login'))
+
+    # Normalize session to the current user record to prevent role drift
+    session['username'] = user['username']
+    session['role'] = user['role']
+
 def get_db():
     """Get database connection"""
     conn = sqlite3.connect(DATABASE, timeout=10.0, check_same_thread=False)
@@ -241,101 +276,115 @@ def upload_resume():
     conn = get_db()
     cursor = conn.cursor()
 
-    # fetch existing resume if any (include saved job_role)
-    resume = cursor.execute('SELECT filename, original_filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+    try:
+        # fetch existing resume if any (include saved job_role)
+        resume = cursor.execute('SELECT filename, original_filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
 
-    if request.method == 'POST':
-        if 'resume' not in request.files:
-            flash('No file part', 'error')
-            conn.close()
-            return render_template('upload_resume.html', resume=resume)
+        if request.method == 'POST':
+            if 'resume' not in request.files:
+                conn.close()
+                return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
-        # optional job role input from user
-        job_role = request.form.get('job_role')
+            # optional job role input from user
+            job_role = request.form.get('job_role')
 
-        file = request.files['resume']
+            file = request.files['resume']
 
-        if file.filename == '':
-            flash('No selected file', 'error')
-            conn.close()
-            return render_template('upload_resume.html', resume=resume)
+            if file.filename == '':
+                conn.close()
+                return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
-        if file and allowed_file(file.filename):
-            filename = secure_filename(f"{user_id}_{int(datetime.utcnow().timestamp())}_{file.filename}")
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-            existing = cursor.execute('SELECT id, filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
-
-            if existing:
-                # remove previous file if exists
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"{user_id}_{int(datetime.utcnow().timestamp())}_{file.filename}")
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 try:
-                    old_path = os.path.join(app.config['UPLOAD_FOLDER'], existing['filename'])
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
-                except Exception:
-                    pass
+                    file.save(filepath)
+                except Exception as e:
+                    print(f"Error saving uploaded file: {str(e)}")
+                    conn.close()
+                    return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
-                # preserve existing job_role if user did not submit a new one
-                new_job_role = job_role if job_role is not None and job_role != '' else (existing['job_role'] if existing and 'job_role' in existing.keys() else None)
-                cursor.execute(
-                    'UPDATE resumes SET filename = ?, original_filename = ?, job_role = ?, uploaded_at = CURRENT_TIMESTAMP WHERE id = ?',
-                    (filename, file.filename, new_job_role, existing['id']),
-                )
-            else:
-                cursor.execute(
-                    'INSERT INTO resumes (user_id, filename, original_filename, job_role) VALUES (?, ?, ?, ?)',
-                    (user_id, filename, file.filename, job_role),
-                )
+                existing = cursor.execute('SELECT id, filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
 
-            conn.commit()
+                if existing:
+                    # remove previous file if exists
+                    try:
+                        old_path = os.path.join(app.config['UPLOAD_FOLDER'], existing['filename'])
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                    except Exception as e:
+                        print(f"Error removing old resume: {str(e)}")
 
-            # fetch updated resume and stay on the same page (include job_role)
-            resume = cursor.execute('SELECT filename, original_filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
-            conn.close()
+                    # preserve existing job_role if user did not submit a new one
+                    new_job_role = job_role if job_role else (existing['job_role'] if existing and 'job_role' in existing.keys() else None)
+                    cursor.execute(
+                        'UPDATE resumes SET filename = ?, original_filename = ?, job_role = ?, uploaded_at = CURRENT_TIMESTAMP WHERE id = ?',
+                        (filename, file.filename, new_job_role, existing['id']),
+                    )
+                else:
+                    cursor.execute(
+                        'INSERT INTO resumes (user_id, filename, original_filename, job_role) VALUES (?, ?, ?, ?)',
+                        (user_id, filename, file.filename, job_role),
+                    )
 
-            # run analyzer and pass results to template
-            try:
-                # get seeker profile basics
-                pconn = get_db()
-                pc = pconn.cursor()
-                prof = pc.execute('SELECT education, experience_years, primary_skills FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
-                pconn.close()
-                path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
-                analysis = analyzer.analyze_resume_file(path, profile_skills=(prof['primary_skills'] if prof else ''), experience_years=(prof['experience_years'] if prof else 0), education=(prof['education'] if prof else ''))
-                # compute role-specific missing skills / suggestions if job_role provided
+                conn.commit()
+
+                # fetch updated resume and stay on the same page (include job_role)
+                resume = cursor.execute('SELECT filename, original_filename, job_role FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+                conn.close()
+
+                # run analyzer and pass results to template
+                analysis = None
                 role_missing = None
                 role_suggestions = None
-                if job_role:
-                    # normalize
-                    jr = job_role.strip().lower()
-                    role_map = getattr(analyzer, 'ROLE_MAP', {})
-                    # try direct match to known roles
-                    if jr in role_map:
-                        required = set(role_map[jr])
-                        found = set(analysis.get('extracted_skills', []))
-                        missing_for_role = sorted(required - found)
-                        role_missing = missing_for_role
-                        if missing_for_role:
-                            role_suggestions = [f'Add skills: {", ".join(missing_for_role)} to match {job_role} roles']
-                        else:
-                            role_suggestions = [f'Profile appears to cover common {job_role} skills']
-                    else:
-                        # no predefined mapping — no role-specific data
-                        role_missing = []
-                        role_suggestions = [f'No predefined skill mapping for "{job_role}".']
-            except Exception:
-                analysis = None
+                try:
+                    # get seeker profile basics
+                    pconn = get_db()
+                    pc = pconn.cursor()
+                    prof = pc.execute('SELECT education, experience_years, primary_skills FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+                    pconn.close()
+                    path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+                    if os.path.exists(path):
+                        analysis = analyzer.analyze_resume_file(path, profile_skills=(prof['primary_skills'] if prof else ''), experience_years=(prof['experience_years'] if prof else 0), education=(prof['education'] if prof else ''))
+                        # compute role-specific missing skills / suggestions if job_role provided
+                        if job_role:
+                            # normalize
+                            jr = job_role.strip().lower()
+                            role_map = getattr(analyzer, 'ROLE_MAP', {})
+                            # try direct match to known roles
+                            if jr in role_map:
+                                required = set(role_map[jr])
+                                found = set(analysis.get('extracted_skills', [])) if analysis else set()
+                                missing_for_role = sorted(required - found)
+                                role_missing = missing_for_role
+                                if missing_for_role:
+                                    role_suggestions = [f'Add skills: {", ".join(missing_for_role)} to match {job_role} roles']
+                                else:
+                                    role_suggestions = [f'Profile appears to cover common {job_role} skills']
+                            else:
+                                # no predefined mapping — no role-specific data
+                                role_missing = []
+                                role_suggestions = [f'No predefined skill mapping for "{job_role}".']
+                except Exception as e:
+                    print(f"Error analyzing resume: {str(e)}")
 
-            flash('Resume uploaded successfully', 'success')
-            return render_template('upload_resume.html', resume=resume, analysis=analysis, role_missing=role_missing, role_suggestions=role_suggestions, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()), selected_role=job_role)
-        else:
-            flash('File type not allowed. Allowed: pdf, doc, docx, txt', 'error')
+                return render_template('upload_resume.html', resume=resume, analysis=analysis, role_missing=role_missing, role_suggestions=role_suggestions, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()), selected_role=job_role)
+            else:
+                conn.close()
+                return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
+
+        conn.close()
+        return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
+    
+    except Exception as e:
+        print(f"Error in upload_resume: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        try:
             conn.close()
-            return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
-
-    conn.close()
-    return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
+        except Exception:
+            pass
+        return render_template('upload_resume.html', resume={}, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
 
 @app.route('/uploads/<path:filename>')
@@ -369,6 +418,9 @@ def download_resume(filename):
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # Clear any stale session so we don't carry over a previous role/user
+        session.clear()
+
         username = request.form.get('username')
         password = request.form.get('password')
         
