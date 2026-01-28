@@ -227,6 +227,16 @@ def init_db():
     conn.commit()
     conn.close()
 
+    # Create default admin user if not exists
+    conn = get_db()
+    cursor = conn.cursor()
+    admin_exists = cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
+    if not admin_exists:
+        hashed_password = generate_password_hash('admin123')
+        cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ('admin', hashed_password, 'admin'))
+        conn.commit()
+    conn.close()
+
 # Initialize database on app start
 init_db()
 
@@ -894,6 +904,47 @@ def seeker_profile():
     conn.close()
 
     return render_template("seeker_profile.html", profile=profile or {})
+
+@app.route("/admin/dashboard")
+@login_required(role="admin")
+def admin_dashboard():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get statistics
+    total_seekers = cursor.execute('SELECT COUNT(*) as count FROM users WHERE role = "seeker"').fetchone()['count']
+    total_recruiters = cursor.execute('SELECT COUNT(*) as count FROM users WHERE role = "recruiter"').fetchone()['count']
+    total_jobs = cursor.execute('SELECT COUNT(*) as count FROM job_postings').fetchone()['count']
+    total_applications = cursor.execute('SELECT COUNT(*) as count FROM applications').fetchone()['count']
+
+    # Get recent users
+    recent_users = cursor.execute('''
+        SELECT id, username, role, created_at 
+        FROM users 
+        WHERE role != "admin"
+        ORDER BY created_at DESC 
+        LIMIT 10
+    ''').fetchall()
+
+    # Get recent job postings
+    recent_jobs = cursor.execute('''
+        SELECT jp.id, jp.job_title, jp.created_at, r.company_name
+        FROM job_postings jp
+        LEFT JOIN recruiters r ON jp.recruiter_id = r.id
+        ORDER BY jp.created_at DESC
+        LIMIT 10
+    ''').fetchall()
+
+    conn.close()
+
+    return render_template('admin_dashboard.html', 
+                         total_seekers=total_seekers,
+                         total_recruiters=total_recruiters,
+                         total_jobs=total_jobs,
+                         total_applications=total_applications,
+                         recent_users=recent_users,
+                         recent_jobs=recent_jobs)
 
 @app.route("/recruiter/dashboard")
 @login_required(role="recruiter")
