@@ -233,7 +233,7 @@ def init_db():
     admin_exists = cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
     if not admin_exists:
         hashed_password = generate_password_hash('admin123')
-        cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ('admin', hashed_password, 'admin'))
+        cursor.execute('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', ('admin', hashed_password, 'admin'))
         conn.commit()
     conn.close()
 
@@ -1995,11 +1995,6 @@ def save_job(job_id):
         conn.rollback()
         conn.close()
         return jsonify({'error': str(e)}), 500
-
-@app.route("/admin/dashboard")
-@login_required(role="admin")
-def admin_dashboard():
-    return render_template("admin_dashboard.html")
 
 @app.route("/seeker/all_jobs")
 @login_required(role="seeker")
