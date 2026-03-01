@@ -1,402 +1,449 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Recruiter Dashboard | CareerConnect</title>
-    <!-- Bootstrap CDN -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
-      crossorigin="anonymous"
-    />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-  </head>
-  <body style="background: #f5f7fb;">
-    <!-- Top Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top" style="z-index: 1020;">
-      <div class="container-fluid">
-        <a class="navbar-brand fw-bold text-primary" href="{{ url_for('recruiter_dashboard') }}">CareerConnect</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#recruiterNav" aria-controls="recruiterNav" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="recruiterNav">
-          <div class="ms-auto d-flex gap-2 align-items-center">
-            <span class="text-muted me-3">
-              <small id="notifications" style="cursor: pointer; text-decoration: underline;">
-                <span id="notification-count">0</span> new applications
-              </small>
-            </span>
-            <a class="btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">Logout</a>
-          </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiter Dashboard | CareerConnect AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+      :root {
+        --primary: #4f46e5;
+        --secondary: #f59e0b;
+        --success: #10b981;
+        --danger: #ef4444;
+        --info: #0ea5e9;
+      }
+      
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+      
+      .navbar {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      
+      .navbar-brand {
+        font-weight: 800;
+        color: var(--primary) !important;
+        font-size: 1.5rem;
+      }
+      
+      .hero-section {
+        background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+        color: white;
+        padding: 50px 40px;
+        border-radius: 16px;
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.2);
+        margin-left: -15px;
+        margin-right: -15px;
+        border-radius: 0;
+      }
+      
+      .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      
+      .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      }
+      
+      .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        color: white;
+        flex-shrink: 0;
+      }
+      
+      .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s;
+      }
+      
+      .card:hover {
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      }
+      
+      .btn {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 10px 20px;
+      }
+      
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+        border: none;
+      }
+      
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
+      }
+      
+      .job-listing {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 5px solid var(--primary);
+        transition: all 0.3s;
+      }
+      
+      .job-listing:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+      }
+      
+      .candidate-card {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.3s;
+      }
+      
+      .candidate-card:hover {
+        border-color: var(--primary);
+        box-shadow: 0 8px 16px rgba(79, 70, 229, 0.15);
+      }
+      
+      .table thead th {
+        background: #f8fafc;
+        border: none;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+      }
+      
+      .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      
+      .match-badge {
+        background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+      }
+      
+      .hero-section {
+        margin-left: -15px;
+        margin-right: -15px;
+        padding-left: 30px;
+        padding-right: 30px;
+      }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('recruiter_dashboard') }}">
+                <i class="fas fa-rocket"></i> CareerConnect
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center gap-3">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('post_job') }}">
+                            <i class="fas fa-plus-circle"></i> Post Job
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('recruiter_profile') }}">
+                            <i class="fas fa-user-circle"></i> Profile
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-danger" href="{{ url_for('logout') }}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
-      </div>
     </nav>
 
-    <div class="container-fluid py-4">
-      <!-- Header -->
-      <div class="d-flex flex-wrap align-items-center justify-content-between mb-4 gap-3">
-        <div>
-          <h2 class="mb-1">
-            Welcome back,
-            <span class="text-primary">{{ profile.company_name or profile.username or 'Recruiter' }}</span>
-          </h2>
-          <p class="text-muted mb-0">Post jobs, review candidates, and manage your hiring pipeline</p>
-        </div>
-        <div class="d-flex gap-2">
-          <a class="btn btn-outline-primary" href="{{ url_for('recruiter_profile') }}">Edit Profile</a>
-          <a class="btn btn-primary" href="{{ url_for('post_job') }}">Post Job</a>
-        </div>
-      </div>
-
-      <div class="row g-4">
-        <!-- Company Profile Summary -->
-        <div class="col-xl-3 col-lg-4" id="company-profile">
-          <div class="card h-100 shadow-sm">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-3">
-                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-weight: 700;">
-                  {{ (profile.company_name or profile.username or 'CC')[:2]|upper if profile else 'CC' }}
+    <div class="container-fluid px-4 py-5">
+        <div class="container-lg">
+            <!-- Hero Section -->
+            <div class="hero-section">
+                <div class="row align-items-center">
+                    <div class="col-md-7">
+                        <h1 class="display-4 fw-bold mb-2">Welcome back! 👋</h1>
+                        <p class="lead mb-0">{{ profile.company_name or 'Recruiter' }}, manage your hiring pipeline efficiently</p>
+                    </div>
+                    <div class="col-md-5 text-md-end">
+                        <a href="{{ url_for('post_job') }}" class="btn btn-light btn-lg me-2">
+                            <i class="fas fa-plus-circle"></i> Post Job
+                        </a>
+                        <a href="{{ url_for('recruiter_profile') }}" class="btn btn-warning btn-lg">
+                            <i class="fas fa-edit"></i> Company
+                        </a>
+                    </div>
                 </div>
-                <div class="ms-3">
-                  <h5 class="mb-0">{{ profile.company_name or 'Your Company' }}</h5>
-                  <small class="text-muted">{{ profile.industry_type or 'Industry' }}</small>
-                </div>
-              </div>
-              <ul class="list-unstyled mb-3 small text-muted">
-                <li class="mb-1">Username: {{ profile.username or '-' }}</li>
-                <li class="mb-1">Location: {{ profile.company_location or '-' }}</li>
-                <li class="mb-1">Industry: {{ profile.industry_type or '-' }}</li>
-                <li class="mb-1">Active Job Postings: <strong id="active-postings">{{ job_postings|length if job_postings else 0 }}</strong></li>
-              </ul>
-              <a class="btn btn-outline-primary w-100" href="{{ url_for('recruiter_profile') }}">View / Edit Profile</a>
             </div>
-          </div>
-        </div>
 
-        <!-- Hiring Metrics & Quick Actions -->
-        <div class="col-xl-9 col-lg-8">
-          <div class="row g-4">
-            <!-- Key Metrics -->
-            <div class="col-md-6">
-              <div class="card h-100 shadow-sm">
+            <!-- Stats Section -->
+            <div class="row g-3 mb-5">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block">Active Jobs</small>
+                                <h4 class="mb-0 fw-bold">{{ active_postings_count }}</h4>
+                            </div>
+                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);">
+                                <i class="fas fa-briefcase"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block">Applications</small>
+                                <h4 class="mb-0 fw-bold">{{ total_applications }}</h4>
+                            </div>
+                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--info) 0%, #0ea5e9 100%);">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block">Shortlisted</small>
+                                <h4 class="mb-0 fw-bold">{{ shortlisted_count }}</h4>
+                            </div>
+                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--secondary) 0%, #fbbf24 100%);">
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <small class="text-muted d-block">Hired</small>
+                                <h4 class="mb-0 fw-bold">{{ hired_count }}</h4>
+                            </div>
+                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="row g-4 mb-5">
+                <!-- Company Info -->
+                <div class="col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 32px; font-weight: bold;">
+                                    <i class="fas fa-building"></i>
+                                </div>
+                            </div>
+                            <h5 class="text-center fw-bold mb-1">{{ profile.company_name or 'Your Company' }}</h5>
+                            <p class="text-center text-muted small mb-3">{{ profile.industry_type or 'Industry' }}</p>
+                            <hr>
+                            <ul class="list-unstyled small">
+                                <li class="mb-2"><strong>Location:</strong> {{ profile.company_location or 'N/A' }}</li>
+                                <li class="mb-2"><strong>Email:</strong> {{ profile.email or 'N/A' }}</li>
+                                <li class="mb-2"><strong>Jobs Posted:</strong> <span class="badge bg-primary">{{ job_postings|length }}</span></li>
+                                <li class="mb-2"><strong>Total Applications:</strong> <span class="badge bg-info">{{ total_applications }}</span></li>
+                            </ul>
+                            <div class="mt-3 d-grid gap-2">
+                                <a href="{{ url_for('recruiter_profile') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit"></i> Edit Profile
+                                </a>
+                                <a href="{{ url_for('post_job') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-plus"></i> Post New Job
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="col-lg-8">
+                    <div class="card h-100">
+                        <div class="card-header bg-light border-0 pt-4 pb-0">
+                            <h5 class="fw-bold mb-0">
+                                <i class="fas fa-fire text-danger"></i> Recent Activity
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="timeline">
+                                {% if job_postings[:5] %}
+                                    {% for job in job_postings[:5] %}
+                                    <div class="mb-4 pb-3 border-bottom">
+                                        <div class="d-flex">
+                                            <div class="badge bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="fas fa-briefcase" style="font-size: 16px;"></i>
+                                            </div>
+                                            <div class="ms-3">
+                                                <h6 class="mb-1">{{ job.job_title }}</h6>
+                                                <small class="text-muted">Posted on {{ job.created_at[:10] }} • <span class="badge bg-info">{{ job.app_count }} applications</span></small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted text-center py-4">No job postings yet</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Postings -->
+            <div class="card mb-5">
+                <div class="card-header bg-light border-0 pt-4 pb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-list text-primary"></i> Your Job Postings
+                        </h5>
+                        <a href="{{ url_for('post_job') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus"></i> Post Job
+                        </a>
+                    </div>
+                </div>
                 <div class="card-body">
-                  <div class="d-flex justify-content-between align-items-start mb-3">
-                    <h5 class="mb-0">Hiring Pipeline</h5>
-                    <span class="badge bg-primary bg-opacity-10 text-primary">This Month</span>
-                  </div>
-                  <div class="row g-3 small">
-                    <div class="col-4">
-                      <div class="text-muted">Active Postings</div>
-                      <div class="display-6 fw-bold text-primary" id="total-postings">{{ active_postings_count if active_postings_count is defined else (job_postings|length if job_postings else 0) }}</div>
-                    </div>
-                    <div class="col-4">
-                      <div class="text-muted">Total Applications</div>
-                      <div class="display-6 fw-bold text-secondary" id="total-applications">{{ total_applications }}</div>
-                    </div>
-                    <div class="col-4">
-                      <div class="text-muted">Shortlisted</div>
-                      <div class="display-6 fw-bold text-info" id="shortlisted-count">{{ shortlisted_count }}</div>
-                    </div>
-                    <div class="col-4">
-                      <div class="text-muted">Rejected</div>
-                      <div class="display-6 fw-bold text-danger" id="rejected-count">{{ rejected_count }}</div>
-                    </div>
-                    <div class="col-4">
-                      <div class="text-muted">Hired</div>
-                      <div class="display-6 fw-bold text-success" id="hired-count">{{ hired_count }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="col-md-6">
-              <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                  <h5 class="mb-3">Quick Actions</h5>
-                  <div class="d-grid gap-2">
-                    <a class="btn btn-primary" href="{{ url_for('post_job') }}">Post New Job</a>
-                    <a class="btn btn-outline-primary" href="{{ url_for('all_candidates') }}">View All Candidates</a>
-                    <a class="btn btn-outline-primary" href="{{ url_for('all_shortlisted') }}">Shortlisted Candidates</a>
-                    <a class="btn btn-outline-primary" href="{{ url_for('analytics') }}">View Analytics</a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Active Job Postings -->
-      <div class="card mt-4 shadow-sm" id="active-jobs">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">Active Job Postings</h5>
-            <div class="d-flex gap-2">
-              <select class="form-select form-select-sm" id="sortBy" style="width: 180px;" onchange="handleSort()">
-                <option value="recent" selected>Sort by: Recently Posted</option>
-                <option value="applications">Most Applications</option>
-                <option value="title">Job Title</option>
-              </select>
-              <input class="form-control form-control-sm" id="filterInput" style="width: 200px;" placeholder="Filter by job title" />
-            </div>
-          </div>
-          <div class="row g-3" id="job-postings-container">
-            <!-- Job posting cards will be dynamically loaded here -->
-            {% if job_postings and job_postings|length > 0 %}
-              {% for job in job_postings %}
-              <div class="col-lg-4 col-md-6">
-                <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
-                  <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                      <div>
-                        <h6 class="mb-1"><a href="{{ url_for('job_details', job_id=job.id) }}" class="text-decoration-none text-dark">{{ job.job_title }}</a></h6>
-                        <small class="text-muted">{{ job.job_location }}</small>
-                      </div>
-                      {% if job.is_active == 1 %}
-                        <span class="badge bg-success">Active</span>
-                      {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                      {% endif %}
-                    </div>
-                    <p class="small text-muted mt-2 mb-2"><strong>Experience:</strong> {{ job.experience_level }}</p>
-                    <p class="small text-muted mb-2"><strong>Type:</strong> {{ job.employment_type }}</p>
-                    {% if job.salary_range %}
-                    <p class="small text-muted mb-2"><strong>Salary:</strong> {{ job.salary_range }}</p>
-                    {% endif %}
-                    <p class="small text-muted mb-2"><strong>Skills:</strong> {{ job.required_skills }}</p>
-                    <div class="d-flex flex-wrap gap-2">
-                      <a class="btn btn-sm btn-primary" href="{{ url_for('recruiter_job_applications', job_id=job.id) }}" onclick="event.stopPropagation();">View Applications</a>
-                      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('edit_job', job_id=job.id) }}" onclick="event.stopPropagation();">Edit</a>
-                      <form method="POST" action="{{ url_for('toggle_job_active', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();">
-                        <button type="submit" class="btn btn-sm {{ 'btn-outline-warning' if job.is_active == 1 else 'btn-outline-success' }}">{{ 'Deactivate' if job.is_active == 1 else 'Activate' }}</button>
-                      </form>
-                      <form method="POST" action="{{ url_for('delete_job', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Delete this job? This cannot be undone.');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                      </form>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {% endfor %}
-            {% else %}
-              <div class="col-12">
-                <p class="text-muted text-center py-4">No active job postings yet. <a href="{{ url_for('post_job') }}">Post a job now</a></p>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Applications & Candidates -->
-      <div class="row g-4 mt-1">
-        <div class="col-lg-8" id="applications">
-          <div class="card shadow-sm h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Recent Applications</h5>
-                <select class="form-select form-select-sm" id="applicationsStatusFilter" style="width: 180px;">
-                  <option value="all" selected>All statuses</option>
-                  <option value="applied">New</option>
-                  <option value="shortlisted">Shortlisted</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="hired">Hired</option>
-                </select>
-              </div>
-              <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                  <thead class="table-light">
-                    <tr>
-                      <th>Candidate</th>
-                      <th>Job Role</th>
-                      <th>Status</th>
-                      <th>Applied</th>
-                      <th>Match %</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="applications-tbody">
-                    {% if applications and applications|length > 0 %}
-                      {% for app in applications %}
-                      <tr data-status="{{ app.status }}">
-                        <td>{{ app.candidate_name }}</td>
-                        <td>{{ app.job_title }}</td>
-                        <td>
-                          {% if app.status == 'applied' %}
-                            <span class="badge bg-secondary">New</span>
-                          {% elif app.status == 'shortlisted' %}
-                            <span class="badge bg-info text-dark">Shortlisted</span>
-                          {% elif app.status == 'rejected' %}
-                            <span class="badge bg-danger">Rejected</span>
-                          {% elif app.status == 'hired' %}
-                            <span class="badge bg-success">Hired</span>
-                          {% endif %}
-                        </td>
-                        <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
-                        <td>
-                          {% if application_match_scores and app.id in application_match_scores %}
-                            <span class="badge bg-success">{{ application_match_scores[app.id] }}%</span>
-                          {% else %}
-                            <span class="badge bg-secondary">--</span>
-                          {% endif %}
-                        </td>
-                        <td>
-                          <a href="{{ url_for('view_candidate', seeker_user_id=app.seeker_user_id, application_id=app.id) }}" class="btn btn-sm btn-outline-primary">View Resume</a>
-                        </td>
-                      </tr>
-                      {% endfor %}
-                    {% else %}
-                      <tr>
-                        <td colspan="6" class="text-muted text-center py-4">No applications yet</td>
-                      </tr>
-                    {% endif %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Shortlisted Candidates -->
-        <div class="col-lg-4" id="shortlisted">
-          <div class="card shadow-sm h-100">
-            <div class="card-body">
-              <h5 class="mb-3">Shortlisted Candidates</h5>
-              <div class="list-group small" id="shortlisted-list">
-                {% if shortlisted_candidates and shortlisted_candidates|length > 0 %}
-                  {% for sc in shortlisted_candidates %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                      <div style="flex: 1;">
-                        <div class="fw-semibold">{{ sc.candidate_name }}</div>
-                        <div class="text-muted small">{{ sc.job_title }} • {{ sc.applied_at[:10] if sc.applied_at else '-' }}</div>
-                        {% if shortlisted_ats_scores and sc.id in shortlisted_ats_scores %}
-                          <div class="mt-1"><span class="badge bg-success">ATS: {{ shortlisted_ats_scores[sc.id] }}</span></div>
+                    {% if job_postings and job_postings|length > 0 %}
+                        <div class="row g-3">
+                            {% for job in job_postings[:6] %}
+                            <div class="col-md-6">
+                                <div class="job-listing">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1 fw-bold">{{ job.job_title }}</h6>
+                                            <small class="text-muted">{{ job.job_location }} • {{ job.employment_type }}</small>
+                                        </div>
+                                        <span class="badge bg-{{ 'success' if job.is_active else 'secondary' }}">
+                                            {{ 'Active' if job.is_active else 'Inactive' }}
+                                        </span>
+                                    </div>
+                                    <p class="small mb-3">{{ job.required_skills[:50] }}...</p>
+                                    <div class="row text-center small mb-3">
+                                        <div class="col-4">
+                                            <strong class="d-block">{{ job.app_count }}</strong>
+                                            <small class="text-muted">Applications</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <strong class="d-block">{{ job.created_at[:10] }}</strong>
+                                            <small class="text-muted">Posted</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <strong class="d-block">{{ job.experience_level }}</strong>
+                                            <small class="text-muted">Level</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('view_applicants', job_id=job.id) }}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-users"></i> View Applicants
+                                        </a>
+                                        <a href="{{ url_for('edit_job', job_id=job.id) }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if job_postings|length > 6 %}
+                        <p class="text-center text-muted mt-4">
+                            <a href="{{ url_for('recruiter_dashboard') }}">View all {{ job_postings|length }} job postings →</a>
+                        </p>
                         {% endif %}
-                      </div>
-                      <a class="btn btn-sm btn-outline-primary ms-2" href="{{ url_for('view_candidate', seeker_user_id=sc.seeker_user_id) }}?application_id={{ sc.id }}">View</a>
-                    </div>
-                  {% endfor %}
-                {% else %}
-                  <p class="text-muted text-center py-4">No shortlisted candidates yet</p>
-                {% endif %}
-              </div>
+                    {% else %}
+                        <p class="text-muted text-center py-5">
+                            <i class="fas fa-briefcase" style="font-size: 48px; opacity: 0.3;"></i>
+                            <div class="mt-3">No job postings yet. Start recruiting!</div>
+                        </p>
+                        <div class="text-center">
+                            <a href="{{ url_for('post_job') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus"></i> Post Your First Job
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-          </div>
+
+            <!-- Shortlisted Candidates -->
+            <div class="card">
+                <div class="card-header bg-light border-0 pt-4 pb-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-star text-warning"></i> Top Shortlisted Candidates
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if shortlisted_candidates and shortlisted_candidates|length > 0 %}
+                        <div class="row g-3">
+                            {% for candidate in shortlisted_candidates[:6] %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="candidate-card">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--secondary) 0%, #fbbf24 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
+                                            {{ (candidate.get('full_name', candidate.get('username', 'C'))[:2]|upper) }}
+                                        </div>
+                                        <div class="ms-3">
+                                            <h6 class="mb-0">{{ candidate.get('full_name', 'Candidate') }}</h6>
+                                            <small class="text-muted">{{ candidate.get('job_title', 'N/A') }}</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong class="small">Match Score:</strong>
+                                        <div class="progress mt-1" style="height: 6px;">
+                                            <div class="progress-bar" style="width: {{ candidate.get('match_score', 75) }}%; background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);"></div>
+                                        </div>
+                                        <small class="text-muted">{{ candidate.get('match_score', 75) }}%</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No shortlisted candidates yet</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-      </div>
     </div>
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
-      crossorigin="anonymous"
-    ></script>
-
-    <script>
-      // Initialize recruiter dashboard
-      document.addEventListener('DOMContentLoaded', function() {
-        // TODO: Load metrics from backend
-        // TODO: Load job postings from backend
-        // TODO: Load recent applications from backend
-        // TODO: Load shortlisted candidates from backend
-      });
-
-      // Handle sort dropdown with AJAX
-      function handleSort() {
-        const sortValue = document.getElementById('sortBy').value;
-        
-        fetch(`{{ url_for('get_jobs') }}?sort=${sortValue}`)
-          .then(response => response.json())
-          .then(data => {
-            const container = document.getElementById('job-postings-container');
-            
-            if (data.jobs && data.jobs.length > 0) {
-              let html = '';
-              data.jobs.forEach(job => {
-                const statusBadge = job.is_active === 1 
-                  ? '<span class="badge bg-success">Active</span>'
-                  : '<span class="badge bg-secondary">Inactive</span>';
-                const jobDetailsUrl = `/job/${job.id}`;
-                const viewAppUrl = `/recruiter/job/${job.id}/applications`;
-                const editUrl = `/recruiter/edit_job/${job.id}`;
-                const toggleUrl = `/recruiter/toggle_job_active/${job.id}`;
-                const deleteUrl = `/recruiter/delete_job/${job.id}`;
-                  
-                html += `
-                  <div class="col-lg-4 col-md-6">
-                    <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='${jobDetailsUrl}'" style="cursor: pointer;">
-                      <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start">
-                          <div>
-                            <h6 class="mb-1"><a href="${jobDetailsUrl}" class="text-decoration-none text-dark">${job.job_title}</a></h6>
-                            <small class="text-muted">${job.job_location}</small>
-                          </div>
-                          ${statusBadge}
-                        </div>
-                        <p class="small text-muted mt-2 mb-2"><strong>Experience:</strong> ${job.experience_level}</p>
-                        <p class="small text-muted mb-2"><strong>Type:</strong> ${job.employment_type}</p>
-                        ${job.salary_range ? `<p class="small text-muted mb-2"><strong>Salary:</strong> ${job.salary_range}</p>` : ''}
-                        <p class="small text-muted mb-2"><strong>Skills:</strong> ${job.required_skills}</p>
-                        <div class="d-flex flex-wrap gap-2">
-                          <a class="btn btn-sm btn-primary" href="${viewAppUrl}" onclick="event.stopPropagation();">View Applications</a>
-                          <a class="btn btn-sm btn-outline-secondary" href="${editUrl}" onclick="event.stopPropagation();">Edit</a>
-                          <form method="POST" action="${toggleUrl}" style="display:inline;" onclick="event.stopPropagation();">
-                            <button type="submit" class="btn btn-sm ${job.is_active === 1 ? 'btn-outline-warning' : 'btn-outline-success'}">${job.is_active === 1 ? 'Deactivate' : 'Activate'}</button>
-                          </form>
-                          <form method="POST" action="${deleteUrl}" style="display:inline;" onclick="event.stopPropagation();" onsubmit="return confirm('Delete this job? This cannot be undone.');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              });
-              container.innerHTML = html;
-            } else {
-              container.innerHTML = '<div class="col-12"><p class="text-muted text-center py-4">No jobs found.</p></div>';
-            }
-          })
-          .catch(error => console.error('Error fetching jobs:', error));
-      }
-
-      // Handle filter input (client-side filtering)
-      document.getElementById('filterInput').addEventListener('keyup', function() {
-        const filterValue = this.value.toLowerCase();
-        const jobCards = document.querySelectorAll('#job-postings-container .col-lg-4');
-        
-        jobCards.forEach(card => {
-          const jobTitle = card.querySelector('h6 a').textContent.toLowerCase();
-          if (jobTitle.includes(filterValue)) {
-            card.style.display = '';
-          } else {
-            card.style.display = 'none';
-          }
-        });
-      });
-
-      // Applications status filter (client-side)
-      (function() {
-        const statusFilter = document.getElementById('applicationsStatusFilter');
-        if (!statusFilter) return;
-
-        statusFilter.addEventListener('change', function() {
-          const value = this.value; // 'all', 'applied', 'shortlisted', 'rejected', 'hired'
-          const rows = document.querySelectorAll('#applications-tbody tr');
-          rows.forEach(row => {
-            const status = row.getAttribute('data-status');
-            if (value === 'all' || status === value) {
-              row.style.display = '';
-            } else {
-              row.style.display = 'none';
-            }
-          });
-        });
-      })();
-    </script>
-  </body>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>
 
 

@@ -946,6 +946,159 @@ def admin_dashboard():
                          recent_users=recent_users,
                          recent_jobs=recent_jobs)
 
+@app.route("/admin/users")
+@login_required(role="admin")
+def admin_users():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get all users with their details
+    users = cursor.execute('''
+        SELECT u.id, u.username, u.role, u.created_at,
+               COALESCE(js.full_name, r.company_name, 'N/A') as name,
+               COALESCE(js.email, r.email, 'N/A') as email
+        FROM users u
+        LEFT JOIN job_seekers js ON u.id = js.user_id
+        LEFT JOIN recruiters r ON u.id = r.user_id
+        WHERE u.role != "admin"
+        ORDER BY u.created_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin_users.html', users=users)
+
+@app.route("/admin/users/<int:user_id>/delete", methods=['POST'])
+@login_required(role="admin")
+def admin_delete_user(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if user exists and is not admin
+        user = cursor.execute('SELECT id, role FROM users WHERE id = ?', (user_id,)).fetchone()
+        if user and user['role'] != 'admin':
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            flash('User deleted successfully', 'success')
+        else:
+            flash('Cannot delete this user', 'error')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('admin_users'))
+
+@app.route("/admin/users/<int:user_id>")
+@login_required(role="admin")
+def admin_user_details(user_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get user details
+    user = cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    
+    if not user:
+        conn.close()
+        flash('User not found', 'error')
+        return redirect(url_for('admin_users'))
+    
+    # Get role-specific details
+    profile = None
+    applications = []
+    job_postings = []
+    
+    if user['role'] == 'seeker':
+        profile = cursor.execute('SELECT * FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
+        resume = cursor.execute('SELECT * FROM resumes WHERE user_id = ?', (user_id,)).fetchone()
+        applications = cursor.execute('''
+            SELECT a.*, jp.job_title, r.company_name
+            FROM applications a
+            JOIN job_seekers js ON a.seeker_id = js.id
+            JOIN job_postings jp ON a.job_id = jp.id
+            JOIN recruiters r ON jp.recruiter_id = r.id
+            WHERE js.user_id = ?
+            ORDER BY a.applied_at DESC
+        ''', (user_id,)).fetchall()
+    elif user['role'] == 'recruiter':
+        profile = cursor.execute('SELECT * FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+        job_postings = cursor.execute('''
+            SELECT jp.*, COUNT(a.id) as application_count
+            FROM job_postings jp
+            LEFT JOIN applications a ON jp.id = a.job_id
+            WHERE jp.recruiter_id = (SELECT id FROM recruiters WHERE user_id = ?)
+            GROUP BY jp.id
+            ORDER BY jp.created_at DESC
+        ''', (user_id,)).fetchall()
+    
+    conn.close()
+    return render_template('admin_user_details.html', 
+                         user=user, 
+                         profile=profile,
+                         applications=applications,
+                         job_postings=job_postings,
+                         resume=resume if user['role'] == 'seeker' else None)
+
+@app.route("/admin/jobs")
+@login_required(role="admin")
+def admin_jobs():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get all job postings
+    jobs = cursor.execute('''
+        SELECT jp.*, r.company_name, r.email,
+               COUNT(a.id) as application_count
+        FROM job_postings jp
+        LEFT JOIN recruiters r ON jp.recruiter_id = r.id
+        LEFT JOIN applications a ON jp.id = a.job_id
+        GROUP BY jp.id
+        ORDER BY jp.created_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin_jobs.html', jobs=jobs)
+
+@app.route("/admin/jobs/<int:job_id>/delete", methods=['POST'])
+@login_required(role="admin")
+def admin_delete_job(job_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM job_postings WHERE id = ?', (job_id,))
+        conn.commit()
+        flash('Job posting deleted successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting job: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('admin_jobs'))
+
+@app.route("/admin/jobs/<int:job_id>/toggle", methods=['POST'])
+@login_required(role="admin")
+def admin_toggle_job(job_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        job = cursor.execute('SELECT is_active FROM job_postings WHERE id = ?', (job_id,)).fetchone()
+        if job:
+            new_status = 0 if job['is_active'] else 1
+            cursor.execute('UPDATE job_postings SET is_active = ? WHERE id = ?', (new_status, job_id))
+            conn.commit()
+            flash(f'Job posting {"activated" if new_status else "deactivated"} successfully', 'success')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating job: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('admin_jobs'))
+
 @app.route("/recruiter/dashboard")
 @login_required(role="recruiter")
 def recruiter_dashboard():

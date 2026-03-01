@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Seeker Dashboard | CareerConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      :root {
+        --primary-color: #4f46e5;
+        --secondary-color: #f59e0b;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --dark-bg: #0f172a;
+        --light-bg: #f8fafc;
+      }
+      
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      }
+      
+      .navbar {
+        background: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      .header-section {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+        color: white;
+        padding: 40px 0;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(79, 70, 229, 0.2);
+      }
+      
+      .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+        border: none;
+      }
+      
+      .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      }
+      
+      .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+      }
+      
+      .card {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+      }
+      
+      .card:hover {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      }
+      
+      .btn {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+      
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+        border: none;
+      }
+      
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+      }
+      
+      .job-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        border-left: 4px solid var(--primary-color);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+      
+      .job-card:hover {
+        transform: translateX(4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      }
+      
+      .badge-custom {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      
+      .table {
+        font-size: 0.95rem;
+      }
+      
+      .table thead th {
+        background: var(--light-bg);
+        border: none;
+        color: #475569;
+        font-weight: 600;
+        border-radius: 8px 8px 0 0;
+      }
+      
+      .profile-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light sticky-top">
+      <div class="container-fluid px-4">
+        <a class="navbar-brand" href="{{ url_for('seeker_dashboard') }}">
+          <i class="fas fa-rocket"></i> CareerConnect
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#seekerNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="seekerNav">
+          <ul class="navbar-nav ms-auto align-items-center gap-2">
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('seeker_profile') }}">
+                <i class="fas fa-user-circle"></i> Profile
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('upload_resume') }}">
+                <i class="fas fa-file-upload"></i> Resume
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}" style="color: var(--danger-color);">
+                <i class="fas fa-sign-out-alt"></i> Logout
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid px-4 py-5">
+      <!-- Welcome Header -->
+      <div class="header-section mb-4">
+        <div class="container-lg">
+          <div class="row align-items-center">
+            <div class="col-md-6 mb-3 mb-md-0">
+              <h1 class="display-5 fw-bold mb-2">Welcome back, {{ profile.full_name or 'Job Seeker' }}! 👋</h1>
+              <p class="lead opacity-90">Track applications, explore opportunities, and land your dream job</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+              <a class="btn btn-light btn-lg me-2" href="{{ url_for('seeker_profile') }}">
+                <i class="fas fa-user"></i> Edit Profile
+              </a>
+              <a class="btn btn-warning btn-lg" href="{{ url_for('upload_resume') }}">
+                <i class="fas fa-file-upload"></i> Update Resume
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container-lg">
+        <!-- Profile summary -->
+        <div class="col-xl-3 col-lg-4" id="profile">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-3">
+                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; font-weight: 700;">
+                  {{ (profile.full_name or profile.username or 'JS')[:2]|upper if profile else 'JS' }}
+                </div>
+                <div class="ms-3">
+                  <h5 class="mb-0">{{ profile.full_name or 'Your Name' }}</h5>
+                  <small class="text-muted">{{ profile.education or 'Your education' }}</small>
+                </div>
+              </div>
+              <ul class="list-unstyled mb-3 small text-muted">
+                <li class="mb-1">Username: {{ profile.username or '-' }}</li>
+                <li class="mb-1">Email: {{ profile.email or '-' }}</li>
+                <li class="mb-1">Experience: {{ profile.experience_years or '0' }} years</li>
+                <li class="mb-1">Primary skills: {{ profile.primary_skills or '-' }}</li>
+              </ul>
+              {% if resume %}
+              <div class="small text-muted mb-3">
+                <strong>Resume:</strong>
+                <span>{{ resume.original_filename or resume.filename }}</span>
+                <div class="mt-2">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('upload_resume') }}">Replace</a>
+                </div>
+              </div>
+              {% else %}
+              <div class="small text-muted mb-3">
+                <strong>Resume:</strong> <span class="text-muted">No resume uploaded</span>
+                <div class="mt-2">
+                  <a class="btn btn-sm btn-primary" href="{{ url_for('upload_resume') }}">Upload Resume</a>
+                </div>
+              </div>
+              {% endif %}
+
+              <a class="btn btn-outline-primary w-100" href="{{ url_for('seeker_profile') }}">View / Edit Profile</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insights & Quick Actions -->
+        <div class="col-xl-9 col-lg-8">
+          <div class="row g-4">
+            <div class="col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="mb-0">AI Resume Insights</h5>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">Latest</span>
+                  </div>
+                  <div class="d-flex align-items-center my-3">
+                    {% if analysis and 'ats' in analysis and 'ats_score' in analysis['ats'] %}
+                    <div id="ats-score" class="display-6 fw-bold text-primary me-3">{{ analysis['ats']['ats_score'] }}</div>
+                    <div class="small text-muted">ATS Score</div>
+                    {% else %}
+                    <div id="ats-score" class="display-6 fw-bold text-muted me-3">--</div>
+                    <div class="small text-muted">ATS Score (No Analysis)</div>
+                    {% endif %}
+                  </div>
+                  <div class="small">
+                    {% if analysis and 'extracted_skills' in analysis %}
+                      <p class="mb-1"><strong>Extracted skills:</strong> <span id="extracted-skills">{{ analysis['extracted_skills'] | join(', ') }}</span></p>
+                      <p class="mb-1"><strong>Missing skills:</strong> <span id="missing-skills">{{ analysis['ats']['missing_skills'] | join(', ') if 'ats' in analysis and 'missing_skills' in analysis['ats'] and analysis['ats']['missing_skills'] else 'None' }}</span></p>
+                      {% if 'suggestions' in analysis and analysis['suggestions'] %}
+                        <p class="mb-1"><strong>Suggestions:</strong> <span id="suggestions">{{ analysis['suggestions'] | join('; ') }}</span></p>
+                      {% else %}
+                        <p class="mb-1"><strong>Suggestions:</strong> <span id="suggestions">None</span></p>
+                      {% endif %}
+                    {% else %}
+                      <p class="mb-1"><strong>Skill gaps:</strong> AWS, Docker</p>
+                      <p class="mb-1"><strong>Suggestions:</strong> Add project metrics; include cloud keywords.</p>
+                    {% endif %}
+                  </div>
+                  <div class="d-flex gap-2 mt-3">
+                    <button id="rerun-analysis" class="btn btn-primary flex-grow-1">Re-run Analysis</button>
+                    <button id="view-details" class="btn btn-outline-secondary flex-grow-1" onclick="window.location.href='{{ url_for('analysis_details') }}'">View Details</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                  <h5 class="mb-3">Quick Actions</h5>
+                  <div class="d-grid gap-2">
+                    <a class="btn btn-outline-primary" href="{{ url_for('all_jobs') }}">Browse All Jobs</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('my_applications') }}">My Applications</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('my_saved_jobs') }}">Saved Jobs</a>
+                    <a class="btn btn-outline-primary" href="{{ url_for('seeker_profile') }}">Update Profile</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommended Jobs -->
+      <div class="card mt-4 shadow-sm" id="recommended">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Recommended Jobs</h5>
+            <select class="form-select form-select-sm" id="sortJobsSeeker" style="width: 200px;">
+              <option value="recent" selected>Sort by: Recently Posted</option>
+              <option value="match">Match %</option>
+              <option value="title">Job Title</option>
+            </select>
+          </div>
+          <div class="row g-3" id="seeker-jobs-container">
+            {% if job_postings and job_postings|length > 0 %}
+              {% for job in job_postings %}
+              <div class="col-lg-4 col-md-6" data-title="{{ job.job_title|lower }}" data-match="{{ match_scores.get(job.id, 0) }}" data-skills="{{ job.required_skills|lower }}">
+                <div class="card h-100 border-0 shadow-sm" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <h6 class="mb-1"><a href="{{ url_for('job_details', job_id=job.id) }}" class="text-decoration-none text-dark">{{ job.job_title }}</a></h6>
+                        <small class="text-muted">{{ job.company_name }} • {{ job.job_location }}</small>
+                      </div>
+                      {% set match = match_scores.get(job.id) %}
+                      {% if match is not none %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary">Match {{ match }}%</span>
+                      {% else %}
+                        <span class="badge bg-secondary bg-opacity-10 text-muted">Match --</span>
+                      {% endif %}
+                    </div>
+                    <p class="small text-muted mt-2 mb-2">{{ job.required_skills | truncate(60) }}</p>
+                    <div class="d-flex gap-2">
+                      {% if job.id in applied_job_ids %}
+                        <button class="btn btn-sm btn-success" disabled>Applied</button>
+                      {% else %}
+                        <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" class="apply-form" data-job-id="{{ job.id }}" style="display: inline;" onclick="event.stopPropagation();">
+                          <button type="submit" class="btn btn-sm btn-primary apply-btn">Apply</button>
+                        </form>
+                      {% endif %}
+                      {% if job.id in saved_job_ids %}
+                        <button class="btn btn-sm btn-warning save-btn" data-job-id="{{ job.id }}" onclick="event.stopPropagation();">Saved</button>
+                      {% else %}
+                        <button class="btn btn-sm btn-outline-secondary save-btn" data-job-id="{{ job.id }}" onclick="event.stopPropagation();">Save</button>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="col-12">
+                <p class="text-muted text-center py-4">No job postings available at the moment.</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Applications & Saved jobs -->
+      <div class="row g-4 mt-1">
+        <div class="col-lg-8" id="applications">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">My Applications</h5>
+                <select class="form-select form-select-sm" style="width: 160px;">
+                  <option selected>All statuses</option>
+                  <option>Applied</option>
+                  <option>Shortlisted</option>
+                  <option>Rejected</option>
+                  <option>Hired</option>
+                </select>
+              </div>
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Role</th>
+                      <th>Company</th>
+                      <th>Status</th>
+                      <th>Applied</th>
+                      <th>Match</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if applications and applications|length > 0 %}
+                      {% for app in applications %}
+                      <tr>
+                        <td>{{ app.job_title }}</td>
+                        <td>{{ app.company_name }}</td>
+                        <td>
+                          {% if app.status == 'applied' %}
+                            <span class="badge bg-secondary">Applied</span>
+                          {% elif app.status == 'shortlisted' %}
+                            <span class="badge bg-info text-dark">Shortlisted</span>
+                          {% elif app.status == 'rejected' %}
+                            <span class="badge bg-danger">Rejected</span>
+                          {% elif app.status == 'hired' %}
+                            <span class="badge bg-success">Hired</span>
+                          {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
+                        {% set app_match = application_match_scores.get(app.id) if application_match_scores is defined else None %}
+                        <td>
+                          {% if app_match is not none %}
+                            <span class="badge bg-primary bg-opacity-10 text-primary">{{ app_match }}%</span>
+                          {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-muted">--</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="5" class="text-muted text-center py-4">No applications yet. Start applying to jobs!</td>
+                      </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4" id="saved">
+          <div class="card shadow-sm h-100">
+            <div class="card-body">
+              <h5 class="mb-3">Saved Jobs</h5>
+              <div class="list-group small">
+                {% if saved_jobs and saved_jobs|length > 0 %}
+                  {% for job in saved_jobs %}
+                  <a href="{{ url_for('job_details', job_id=job.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-semibold">{{ job.job_title }}</div>
+                      <div class="text-muted">{{ job.company_name }} • {{ job.job_location }}</div>
+                    </div>
+                    {% if job.id in applied_job_ids %}
+                      <span class="badge bg-success">Applied</span>
+                    {% else %}
+                      <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" class="apply-form" data-job-id="{{ job.id }}" style="display: inline;" onclick="event.stopPropagation();">
+                        <button type="submit" class="btn btn-sm btn-outline-primary apply-btn">Apply</button>
+                      </form>
+                    {% endif %}
+                  </a>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-muted text-center py-4">No saved jobs yet</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+      crossorigin="anonymous"
+    ></script>
+    
+  </body>
+</html>
+
+    <!-- Analysis modal -->
+    <div class="modal fade" id="analysisModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-body text-center py-4">
+            <div id="analysis-modal-text" class="fw-semibold">Analysing</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application success modal -->
+    <div class="modal fade" id="applicationSuccessModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-body text-center py-4">
+            <div class="text-success mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-check-circle" viewBox="0 0 16 16">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                <path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/>
+              </svg>
+            </div>
+            <h5 class="fw-semibold">Applied Successfully!</h5>
+            <p class="text-muted mb-0">Your application has been submitted.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save job success modal -->
+    <div class="modal fade" id="saveSuccessModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-body text-center py-4">
+            <div class="text-warning mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" fill="currentColor" class="bi bi-bookmark-check" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0z"/>
+                <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/>
+              </svg>
+            </div>
+            <h5 class="fw-semibold" id="save-modal-title">Job Saved!</h5>
+            <p class="text-muted mb-0" id="save-modal-text">Job added to your saved list.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        const rerunBtn = document.getElementById('rerun-analysis');
+        const modalEl = document.getElementById('analysisModal');
+        const modalText = document.getElementById('analysis-modal-text');
+        const bsModal = modalEl ? new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false }) : null;
+        if (!rerunBtn) return;
+
+        function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+        rerunBtn.addEventListener('click', async function(){
+          try{
+            if (bsModal){
+              modalText.innerText = 'Analysing';
+              bsModal.show();
+            }
+
+            rerunBtn.disabled = true;
+
+            // Start fetch in parallel
+            const fetchPromise = fetch('{{ url_for('rerun_analysis') }}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+
+            // Always show 'Analysing' for 2000ms
+            await sleep(2000);
+
+            // Show completed after 2s
+            if (modalText) modalText.innerText = 'Completed';
+
+            // Wait for fetch to finish (if still running)
+            let resp = null;
+            try{ resp = await fetchPromise; } catch(e){ resp = null; }
+
+            let data = null;
+            if (resp && resp.ok){
+              data = await resp.json().catch(()=>null);
+            } else if (resp){
+              const j = await resp.json().catch(()=>({}));
+              alert('Failed to re-run analysis: ' + (j.error || resp.statusText));
+            }
+
+            if (data){
+              const ats = document.getElementById('ats-score');
+              const extracted = document.getElementById('extracted-skills');
+              const missing = document.getElementById('missing-skills');
+              const suggestions = document.getElementById('suggestions');
+
+              if (ats && data.ats && typeof data.ats.ats_score !== 'undefined') ats.innerText = data.ats.ats_score;
+              if (extracted && Array.isArray(data.extracted_skills)) extracted.innerText = data.extracted_skills.join(', ');
+              if (missing && data.ats) missing.innerText = (data.ats.missing_skills && data.ats.missing_skills.length) ? data.ats.missing_skills.join(', ') : 'None';
+              if (suggestions) suggestions.innerText = (data.suggestions && data.suggestions.length) ? data.suggestions.join('; ') : 'None';
+            }
+
+            // Close modal shortly after showing 'Completed'
+            setTimeout(()=>{ if (bsModal) bsModal.hide(); }, 700);
+
+          }catch(err){
+            console.error(err);
+            alert('Unexpected error while running analysis');
+            if (bsModal) bsModal.hide();
+          }finally{
+            rerunBtn.disabled = false;
+          }
+        });
+      })();
+
+      // Handle job application forms
+      (function(){
+        const successModal = new bootstrap.Modal(document.getElementById('applicationSuccessModal'));
+        const applyForms = document.querySelectorAll('.apply-form');
+
+        applyForms.forEach(form => {
+          form.addEventListener('submit', function(e){
+            e.preventDefault();
+            const jobId = form.dataset.jobId;
+            const btn = form.querySelector('.apply-btn');
+            const originalText = btn.innerText;
+
+            btn.disabled = true;
+            btn.innerText = 'Applying...';
+
+            fetch(form.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+              }
+            })
+            .then(resp => {
+              if (resp.redirected) {
+                // Success - show modal
+                successModal.show();
+                
+                // Change button to Applied
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                btn.innerText = 'Applied';
+                
+                // Auto-hide modal after 2 seconds
+                setTimeout(() => successModal.hide(), 2000);
+              } else {
+                btn.disabled = false;
+                btn.innerText = originalText;
+                alert('Failed to apply. Please try again.');
+              }
+            })
+            .catch(err => {
+              btn.disabled = false;
+              btn.innerText = originalText;
+              alert('Error applying to job. Please try again.');
+            });
+          });
+        });
+      })();
+
+      // Handle save job buttons
+      (function(){
+        const saveModal = new bootstrap.Modal(document.getElementById('saveSuccessModal'));
+        const saveModalTitle = document.getElementById('save-modal-title');
+        const saveModalText = document.getElementById('save-modal-text');
+        const saveBtns = document.querySelectorAll('.save-btn');
+
+        saveBtns.forEach(btn => {
+          btn.addEventListener('click', function(){
+            const jobId = btn.dataset.jobId;
+            const wasSaved = btn.classList.contains('btn-warning');
+
+            btn.disabled = true;
+            const originalText = btn.innerText;
+            btn.innerText = wasSaved ? 'Unsaving...' : 'Saving...';
+
+            fetch(`/seeker/save_job/${jobId}`, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+              }
+            })
+            .then(resp => resp.json())
+            .then(data => {
+              if (data.status === 'saved') {
+                // Show saved modal
+                saveModalTitle.innerText = 'Job Saved!';
+                saveModalText.innerText = 'Job added to your saved list.';
+                saveModal.show();
+                
+                // Change button to Saved
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-warning');
+                btn.innerText = 'Saved';
+                
+                // Reload page after 2 seconds to update saved jobs sidebar
+                setTimeout(() => {
+                  saveModal.hide();
+                  location.reload();
+                }, 2000);
+              } else if (data.status === 'unsaved') {
+                // Show unsaved modal
+                saveModalTitle.innerText = 'Job Removed';
+                saveModalText.innerText = 'Job removed from your saved list.';
+                saveModal.show();
+                
+                // Change button to Save
+                btn.classList.remove('btn-warning');
+                btn.classList.add('btn-outline-secondary');
+                btn.innerText = 'Save';
+                
+                // Reload page after 2 seconds to update saved jobs sidebar
+                setTimeout(() => {
+                  saveModal.hide();
+                  location.reload();
+                }, 2000);
+              }
+              btn.disabled = false;
+            })
+            .catch(err => {
+              btn.disabled = false;
+              btn.innerText = originalText;
+              alert('Error saving job. Please try again.');
+            });
+          });
+        });
+      })();
+
+      // Sort jobs on seeker dashboard
+      document.addEventListener('DOMContentLoaded', function() {
+        const sortSelect = document.getElementById('sortJobsSeeker');
+        
+        if (!sortSelect) return;
+
+        // Sort functionality
+        sortSelect.addEventListener('change', function() {
+          const sortValue = this.value;
+          const container = document.getElementById('seeker-jobs-container');
+          const jobCards = Array.from(container.querySelectorAll('.col-lg-4.col-md-6'));
+          
+          jobCards.sort((a, b) => {
+            if (sortValue === 'match') {
+              const matchA = parseInt(a.getAttribute('data-match')) || 0;
+              const matchB = parseInt(b.getAttribute('data-match')) || 0;
+              return matchB - matchA;
+            } else if (sortValue === 'title') {
+              const titleA = a.getAttribute('data-title') || '';
+              const titleB = b.getAttribute('data-title') || '';
+              return titleA.localeCompare(titleB);
+            }
+            return 0; // 'recent' keeps original order
+          });
+          
+          // Re-append sorted cards
+          jobCards.forEach(card => container.appendChild(card));
+        });
+      });
+    </script>
+
+
