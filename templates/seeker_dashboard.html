@@ -297,55 +297,93 @@
                         </div>
                         <div class="card-body">
                             {% if analysis and 'ats' in analysis %}
-                                <div class="row align-items-center mb-4">
-                                    <div class="col-md-4 text-center border-end">
-                                        <div style="font-size: 56px; font-weight: bold; color: var(--primary);">
-                                            {{ analysis['ats']['ats_score'] }}
+                                <div class="row g-4 mb-3 align-items-stretch">
+                                    <!-- ATS score dial + quick stats -->
+                                    <div class="col-md-4">
+                                        <div class="h-100 d-flex flex-column justify-content-center align-items-center">
+                                            <div class="position-relative mb-2" style="width: 120px; height: 120px;">
+                                                <div class="rounded-circle" style="width: 100%; height: 100%; border: 8px solid rgba(148, 163, 184, 0.25);"></div>
+                                                <div class="position-absolute top-50 start-50 translate-middle rounded-circle d-flex flex-column justify-content-center align-items-center" style="width: 96px; height: 96px; background: white; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);">
+                                                    <div style="font-size: 32px; font-weight: 800; color: var(--primary);">
+                                                        {{ analysis['ats']['ats_score'] }}
+                                                    </div>
+                                                    <small class="text-muted text-uppercase" style="letter-spacing: .08em; font-size: 0.7rem;">ATS Score</small>
+                                                </div>
+                                            </div>
+                                            <div class="text-center small text-muted">
+                                                {% set extracted = analysis['extracted_skills']|length if analysis['extracted_skills'] else 0 %}
+                                                {% set missing = analysis['ats']['missing_skills']|length if analysis['ats']['missing_skills'] else 0 %}
+                                                <div>{{ extracted }} skills detected • {{ missing }} gaps</div>
+                                            </div>
                                         </div>
-                                        <small class="text-muted">ATS Score</small>
                                     </div>
-                                    <div class="col-md-8 ps-4">
-                                        <div class="mb-3">
-                                            <strong>Extracted Skills:</strong>
-                                            <div>
-                                                {% for skill in analysis['extracted_skills'][:5] %}
-                                                <span class="badge bg-primary me-1 mt-1">{{ skill }}</span>
+
+                                    <!-- Skills and gaps -->
+                                    <div class="col-md-8">
+                                        <div class="row g-3">
+                                            <div class="col-sm-6">
+                                                <h6 class="fw-semibold mb-2">
+                                                    <i class="fas fa-check-circle text-success me-1"></i> Top Skills
+                                                </h6>
+                                                <div class="small" style="max-height: 96px; overflow-y: auto;">
+                                                    {% if analysis['extracted_skills'] %}
+                                                        {% for skill in analysis['extracted_skills'][:10] %}
+                                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1 mt-1">
+                                                            {{ skill }}
+                                                        </span>
+                                                        {% endfor %}
+                                                        {% if analysis['extracted_skills']|length > 10 %}
+                                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 me-1 mt-1">
+                                                            +{{ analysis['extracted_skills']|length - 10 }} more
+                                                        </span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span class="text-muted">No skills detected yet.</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="col-sm-6">
+                                                <h6 class="fw-semibold mb-2">
+                                                    <i class="fas fa-exclamation-triangle text-warning me-1"></i> Skill Gaps
+                                                </h6>
+                                                <div class="small" style="max-height: 96px; overflow-y: auto;">
+                                                    {% if analysis['ats']['missing_skills'] %}
+                                                        {% for skill in analysis['ats']['missing_skills'][:10] %}
+                                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 me-1 mt-1">
+                                                            {{ skill }}
+                                                        </span>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                                            All key skills covered
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {% if analysis.get('suggestions') %}
+                                        <hr class="my-3" />
+                                        <div>
+                                            <h6 class="fw-semibold mb-2">
+                                                <i class="fas fa-lightbulb text-primary me-1"></i> Quick Improvements
+                                            </h6>
+                                            <ul class="small mb-0 ps-3" style="max-height: 96px; overflow-y: auto;">
+                                                {% for suggestion in analysis['suggestions'] %}
+                                                <li class="mb-1">{{ suggestion }}</li>
                                                 {% endfor %}
-                                                {% if analysis['extracted_skills']|length > 5 %}
-                                                <span class="badge bg-secondary me-1 mt-1">+{{ analysis['extracted_skills']|length - 5 }} more</span>
-                                                {% endif %}
-                                            </div>
+                                            </ul>
                                         </div>
-                                        <div class="mb-0">
-                                            <strong>Missing Skills:</strong>
-                                            <div>
-                                                {% if analysis['ats']['missing_skills'] %}
-                                                    {% for skill in analysis['ats']['missing_skills'][:3] %}
-                                                    <span class="badge bg-warning me-1 mt-1">{{ skill }}</span>
-                                                    {% endfor %}
-                                                {% else %}
-                                                <span class="badge bg-success">All skills covered!</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+                                        {% endif %}
                                     </div>
                                 </div>
-                                {% if analysis.get('suggestions') %}
-                                <div class="alert alert-info mb-0">
-                                    <strong>💡 Suggestions:</strong>
-                                    <ul class="mb-0 mt-2">
-                                        {% for suggestion in analysis['suggestions'] %}
-                                        <li>{{ suggestion }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                {% endif %}
-                                <div class="mt-3 d-flex gap-2">
-                                    <button id="rerun-analysis" class="btn btn-primary btn-sm flex-grow-1">
-                                        <i class="fas fa-sync"></i> Re-run Analysis
+
+                                <div class="pt-3 mt-2 border-top d-flex gap-2 justify-content-end">
+                                    <button id="rerun-analysis" class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-sync me-1"></i> Re-run Analysis
                                     </button>
-                                    <a href="{{ url_for('analysis_details') }}" class="btn btn-outline-primary btn-sm flex-grow-1">
-                                        <i class="fas fa-arrow-right"></i> View Details
+                                    <a href="{{ url_for('analysis_details') }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-arrow-right me-1"></i> View Full Report
                                     </a>
                                 </div>
                             {% else %}
