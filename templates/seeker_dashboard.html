@@ -389,7 +389,7 @@
                                                     {% elif app.status == 'rejected' %}
                                                     <span class="status-badge" style="background: #fee2e2; color: var(--danger);">Rejected</span>
                                                     {% elif app.status == 'hired' %}
-                                                    <span class="status-badge" style="background: #dcfce7; color: var(--success);">Hired</span>
+                                                    <span class="status-badge" style="background: #dcfce7; color: var(--success);">Interview Scheduled</span>
                                                     {% endif %}
                                                 </td>
                                                 <td><small class="text-muted">{{ app.applied_at[:10] if app.applied_at else '-' }}</small></td>
@@ -465,7 +465,7 @@
                         <div class="row g-3">
                             {% for job in job_postings[:6] %}
                             <div class="col-md-6 col-lg-4">
-                                <div class="job-card">
+                                <div class="job-card" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div>
                                             <h6 class="mb-1">{{ job.job_title }}</h6>
@@ -481,7 +481,7 @@
                                         {% if job.id in applied_job_ids %}
                                         <button class="btn btn-success btn-sm" disabled>Applied</button>
                                         {% else %}
-                                        <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display: inline;">
+                                        <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display: inline;" onclick="event.stopPropagation();">
                                             <button type="submit" class="btn btn-primary btn-sm w-100">Apply Now</button>
                                         </form>
                                         {% endif %}
@@ -495,7 +495,48 @@
                     {% endif %}
                 </div>
             </div>
-        </div>
+
+            <!-- All Job Postings -->
+            <div class="card mt-5">
+                <div class="card-header bg-light border-0 pt-4 pb-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-briefcase text-primary"></i> All Job Postings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if job_postings and job_postings|length > 0 %}
+                        <div class="row g-3">
+                            {% for job in job_postings %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="job-card" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="mb-1">{{ job.job_title }}</h6>
+                                            <small class="text-muted">{{ job.company_name }}</small>
+                                        </div>
+                                        {% set match = match_scores.get(job.id) %}
+                                        {% if match is not none %}
+                                        <span class="badge badge-match">{{ match }}%</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted d-block mb-3">{{ job.job_location }} • {{ job.employment_type }}</small>
+                                    <small class="text-muted d-block mb-3"><strong>{{ job.experience_level }}</strong> • {{ job.salary_range }}</small>
+                                    <div class="d-grid gap-2">
+                                        {% if job.id in applied_job_ids %}
+                                        <button class="btn btn-success btn-sm" disabled>Applied</button>
+                                        {% else %}
+                                        <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display: inline;" onclick="event.stopPropagation();">
+                                            <button type="submit" class="btn btn-primary btn-sm w-100">Apply Now</button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-4">No jobs available at the moment</p>
+                    {% endif %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

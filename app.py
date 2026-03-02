@@ -57,6 +57,10 @@ def ensure_valid_session():
     ):
         return
 
+    # Skip validation for POST requests to avoid interrupting form submissions
+    if request.method == 'POST':
+        return
+
     user_id = session.get('user_id')
     if not user_id:
         return
@@ -259,8 +263,10 @@ def login_required(role=None):
             
             if role and user_role != role:
                 print(f"DEBUG: Role mismatch for {request.path}. Expected: {role}, Got: {user_role}")
-                # Stay on current dashboard - don't switch roles
-                return redirect(request.referrer or url_for("login"))
+                # Clear session on role mismatch to prevent infinite redirects
+                session.clear()
+                flash("Please login with the correct user type", "error")
+                return redirect(url_for("login"))
             
             # Refresh session timestamp on each authenticated request
             session.modified = True
