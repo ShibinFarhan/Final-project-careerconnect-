@@ -268,9 +268,14 @@ def login_required(role=None):
             
             if role and user_role != role:
                 print(f"DEBUG: Role mismatch for {request.path}. Expected: {role}, Got: {user_role}")
-                # Clear session on role mismatch to prevent infinite redirects
-                session.clear()
-                flash("Please login with the correct user type", "error")
+                # Keep session and send user back to their own dashboard instead of login
+                flash("You don't have access to that page with this account.", "error")
+                if user_role == "seeker":
+                    return redirect(url_for("seeker_dashboard"))
+                elif user_role == "recruiter":
+                    return redirect(url_for("recruiter_dashboard"))
+                elif user_role == "admin":
+                    return redirect(url_for("admin_dashboard"))
                 return redirect(url_for("login"))
             
             # Refresh session timestamp on each authenticated request

@@ -190,56 +190,64 @@
             <!-- Stats Section -->
             <div class="row g-3 mb-5">
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <small class="text-muted d-block">Applications</small>
-                                <h4 class="mb-0 fw-bold">{{ applications|length if applications else 0 }}</h4>
-                            </div>
-                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);">
-                                <i class="fas fa-file-alt"></i>
+                    <a href="{{ url_for('my_applications') }}" class="text-decoration-none text-dark">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <small class="text-muted d-block">Applications</small>
+                                    <h4 class="mb-0 fw-bold">{{ applications|length if applications else 0 }}</h4>
+                                </div>
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <small class="text-muted d-block">Saved Jobs</small>
-                                <h4 class="mb-0 fw-bold">{{ saved_jobs|length if saved_jobs else 0 }}</h4>
-                            </div>
-                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--secondary) 0%, #fbbf24 100%);">
-                                <i class="fas fa-bookmark"></i>
+                    <a href="{{ url_for('my_saved_jobs') }}" class="text-decoration-none text-dark">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <small class="text-muted d-block">Saved Jobs</small>
+                                    <h4 class="mb-0 fw-bold">{{ saved_jobs|length if saved_jobs else 0 }}</h4>
+                                </div>
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--secondary) 0%, #fbbf24 100%);">
+                                    <i class="fas fa-bookmark"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <small class="text-muted d-block">Open Jobs</small>
-                                <h4 class="mb-0 fw-bold">{{ job_postings|length if job_postings else 0 }}</h4>
-                            </div>
-                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">
-                                <i class="fas fa-briefcase"></i>
+                    <a href="{{ url_for('all_jobs') }}" class="text-decoration-none text-dark">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <small class="text-muted d-block">Open Jobs</small>
+                                    <h4 class="mb-0 fw-bold">{{ job_postings|length if job_postings else 0 }}</h4>
+                                </div>
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">
+                                    <i class="fas fa-briefcase"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <small class="text-muted d-block">ATS Score</small>
-                                <h4 class="mb-0 fw-bold">{% if analysis and 'ats' in analysis %}{{ analysis['ats']['ats_score'] }}%{% else %}--{% endif %}</h4>
-                            </div>
-                            <div class="stat-icon" style="background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);">
-                                <i class="fas fa-star"></i>
+                    <a href="{% if analysis and 'ats' in analysis %}{{ url_for('analysis_details') }}{% else %}{{ url_for('upload_resume') }}{% endif %}" class="text-decoration-none text-dark">
+                        <div class="stat-card">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <small class="text-muted d-block">ATS Score</small>
+                                    <h4 class="mb-0 fw-bold">{% if analysis and 'ats' in analysis %}{{ analysis['ats']['ats_score'] }}%{% else %}--{% endif %}</h4>
+                                </div>
+                                <div class="stat-icon" style="background: linear-gradient(135deg, var(--danger) 0%, #f87171 100%);">
+                                    <i class="fas fa-star"></i>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
 
@@ -462,7 +470,10 @@
                 <div class="card-body">
                     {% if job_postings and job_postings|length > 0 %}
                         <div class="row g-3">
-                            {% for job in job_postings[:6] %}
+                            {# Only show jobs with a positive match score #}
+                            {% for job in job_postings %}
+                            {% set match = match_scores.get(job.id) %}
+                            {% if match is not none and match > 0 %}
                             <div class="col-md-6 col-lg-4">
                                 <div class="job-card" onclick="window.location.href='{{ url_for('job_details', job_id=job.id) }}'" style="cursor: pointer;">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
@@ -470,7 +481,6 @@
                                             <h6 class="mb-1">{{ job.job_title }}</h6>
                                             <small class="text-muted">{{ job.company_name }}</small>
                                         </div>
-                                        {% set match = match_scores.get(job.id) %}
                                         {% if match is not none %}
                                         <span class="badge badge-match">{{ match }}%</span>
                                         {% endif %}
@@ -487,6 +497,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {% endif %}
                             {% endfor %}
                         </div>
                     {% else %}
