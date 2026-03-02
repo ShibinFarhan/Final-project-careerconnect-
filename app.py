@@ -65,19 +65,24 @@ def ensure_valid_session():
     if not user_id:
         return
 
-    conn = get_db()
-    cursor = conn.cursor()
-    user = cursor.execute('SELECT id, username, role FROM users WHERE id = ?', (user_id,)).fetchone()
-    conn.close()
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        user = cursor.execute('SELECT id, username, role FROM users WHERE id = ?', (user_id,)).fetchone()
+        conn.close()
 
-    if not user:
-        session.clear()
-        flash("Your session expired. Please log in again.", "error")
-        return redirect(url_for('login'))
+        if not user:
+            session.clear()
+            flash("Your session expired. Please log in again.", "error")
+            return redirect(url_for('login'))
 
-    # Normalize session to the current user record to prevent role drift
-    session['username'] = user['username']
-    session['role'] = user['role']
+        # Normalize session to the current user record to prevent role drift
+        session['username'] = user['username']
+        session['role'] = user['role']
+    except Exception as e:
+        # On database error, just let the route handler deal with it
+        print(f"DEBUG: Error in ensure_valid_session: {str(e)}")
+        pass
 
 def get_db():
     """Get database connection"""
@@ -960,9 +965,12 @@ def admin_users():
     
     # Get all users with their details
     users = cursor.execute('''
-        SELECT u.id, u.username, u.role, u.created_at,
+        SELECT u.id,
+               u.username,
+               u.role,
+               u.created_at,
                COALESCE(js.full_name, r.company_name, 'N/A') as name,
-               COALESCE(js.email, r.email, 'N/A') as email
+               js.email as email
         FROM users u
         LEFT JOIN job_seekers js ON u.id = js.user_id
         LEFT JOIN recruiters r ON u.id = r.user_id
@@ -1054,7 +1062,7 @@ def admin_jobs():
     
     # Get all job postings
     jobs = cursor.execute('''
-        SELECT jp.*, r.company_name, r.email,
+        SELECT jp.*, r.company_name,
                COUNT(a.id) as application_count
         FROM job_postings jp
         LEFT JOIN recruiters r ON jp.recruiter_id = r.id
@@ -1104,6 +1112,44 @@ def admin_toggle_job(job_id):
         conn.close()
     
     return redirect(url_for('admin_jobs'))
+
+@app.route("/admin/seekers")
+@login_required(role="admin")
+def admin_seekers():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get all job seekers with their details
+    seekers = cursor.execute('''
+        SELECT u.id, u.username, u.created_at,
+               js.full_name, js.email, js.education, js.experience_years, js.primary_skills
+        FROM users u
+        JOIN job_seekers js ON u.id = js.user_id
+        WHERE u.role = "seeker"
+        ORDER BY u.created_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin_seekers.html', seekers=seekers)
+
+@app.route("/admin/recruiters")
+@login_required(role="admin")
+def admin_recruiters():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get all recruiters with their details
+    recruiters = cursor.execute('''
+        SELECT u.id, u.username, u.created_at,
+               r.company_name, r.industry_type, r.company_location
+        FROM users u
+        JOIN recruiters r ON u.id = r.user_id
+        WHERE u.role = "recruiter"
+        ORDER BY u.created_at DESC
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin_recruiters.html', recruiters=recruiters)
 
 @app.route("/recruiter/dashboard")
 @login_required(role="recruiter")
@@ -2353,24 +2399,22 @@ def logout():
 
 @app.errorhandler(Exception)
 def handle_error(error):
-    """Global error handler to prevent session loss on errors"""
+    """
+    Global error handler for unexpected server errors.
+    Avoids redirect loops and keeps session intact.
+    """
+    from werkzeug.exceptions import HTTPException
+
+    # Let Flask handle HTTP-level errors (404, redirects, etc.)
+    if isinstance(error, HTTPException):
+        return error
+
     print(f"ERROR: {str(error)}")
     import traceback
     traceback.print_exc()
-    
-    # Don't clear session on errors
-    user_id = session.get("user_id")
-    user_role = session.get("role")
-    
-    if user_id:
-        # User is logged in, redirect to appropriate dashboard without error message
-        if user_role == "seeker":
-            return redirect(url_for("seeker_dashboard"))
-        elif user_role == "recruiter":
-            return redirect(url_for("recruiter_dashboard"))
-    
-    # User not logged in
-    return redirect(url_for("login"))
+
+    # Show a generic error page but do NOT clear the session
+    return render_template("error.html"), 500
 
 if __name__ == "__main__":
     init_db()

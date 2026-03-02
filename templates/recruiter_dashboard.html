@@ -193,8 +193,8 @@
             <div class="hero-section">
                 <div class="row align-items-center">
                     <div class="col-md-7">
-                        <h1 class="display-4 fw-bold mb-2">Welcome back! 👋</h1>
-                        <p class="lead mb-0">{{ profile.company_name or 'Recruiter' }}, manage your hiring pipeline efficiently</p>
+                        <h1 class="display-4 fw-bold mb-2">Welcome, talent leader</h1>
+                        <p class="lead mb-0">{{ profile.company_name or 'Your organization' }} — shape your hiring strategy, track roles, and move great candidates faster.</p>
                     </div>
                     <div class="col-md-5 text-md-end">
                         <a href="{{ url_for('post_job') }}" class="btn btn-light btn-lg me-2">
@@ -416,19 +416,20 @@
                                 <div class="candidate-card">
                                     <div class="d-flex align-items-center mb-3">
                                         <div style="width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, var(--secondary) 0%, #fbbf24 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 18px;">
-                                            {{ (candidate.get('full_name', candidate.get('username', 'C'))[:2]|upper) }}
+                                            {{ (candidate['full_name'] or 'C')[:2]|upper }}
                                         </div>
                                         <div class="ms-3">
-                                            <h6 class="mb-0">{{ candidate.get('full_name', 'Candidate') }}</h6>
-                                            <small class="text-muted">{{ candidate.get('job_title', 'N/A') }}</small>
+                                            <h6 class="mb-0">{{ candidate['full_name'] or 'Candidate' }}</h6>
+                                            <small class="text-muted">{{ candidate['job_title'] or 'N/A' }}</small>
                                         </div>
                                     </div>
                                     <div class="mb-2">
                                         <strong class="small">Match Score:</strong>
                                         <div class="progress mt-1" style="height: 6px;">
-                                            <div class="progress-bar" style="width: {{ candidate.get('match_score', 75) }}%; background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);"></div>
+                                            {% set score = 75 %}
+                                            <div class="progress-bar" style="width: {{ score }}%; background: linear-gradient(90deg, var(--success) 0%, #34d399 100%);"></div>
                                         </div>
-                                        <small class="text-muted">{{ candidate.get('match_score', 75) }}%</small>
+                                        <small class="text-muted">{{ score }}%</small>
                                     </div>
                                 </div>
                             </div>
