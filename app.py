@@ -1902,6 +1902,67 @@ def all_shortlisted():
     conn.close()
     return render_template("all_shortlisted.html", candidates=candidates or [], candidate_ats_scores=candidate_ats_scores)
 
+@app.route("/recruiter/interviews")
+@login_required(role="recruiter")
+def recruiter_interviews():
+    """List all candidates whose status is 'hired' (interview scheduled)."""
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        return redirect(url_for("recruiter_dashboard"))
+
+    applications = cursor.execute(
+        """
+        SELECT a.id as application_id,
+               a.applied_at,
+               js.full_name,
+               js.email,
+               js.user_id as seeker_user_id,
+               js.primary_skills,
+               js.experience_years,
+               jp.job_title
+        FROM applications a
+        JOIN job_postings jp ON a.job_id = jp.id
+        JOIN job_seekers js ON a.seeker_id = js.id
+        WHERE jp.recruiter_id = ? AND a.status = 'hired'
+        ORDER BY a.applied_at DESC
+        """,
+        (recruiter['id'],),
+    ).fetchall()
+
+    # Compute ATS scores for these candidates
+    application_ats_scores = {}
+    for app_row in applications:
+        try:
+            resume = cursor.execute(
+                'SELECT filename FROM resumes WHERE user_id = ?',
+                (app_row['seeker_user_id'],)
+            ).fetchone()
+
+            if resume:
+                resume_path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+                if os.path.exists(resume_path):
+                    analysis_result = analyzer.analyze_resume_file(
+                        resume_path,
+                        profile_skills=app_row['primary_skills'] or '',
+                        experience_years=app_row['experience_years'] or 0,
+                    )
+                    if analysis_result and 'ats' in analysis_result:
+                        application_ats_scores[app_row['application_id']] = analysis_result['ats']['ats_score']
+        except Exception:
+            pass
+
+    conn.close()
+    return render_template(
+        "recruiter_interviews.html",
+        applications=applications or [],
+        application_ats_scores=application_ats_scores
+    )
+
 @app.route("/recruiter/analytics")
 @login_required(role="recruiter")
 def analytics():
