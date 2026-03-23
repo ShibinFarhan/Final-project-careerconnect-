@@ -68,6 +68,55 @@
         margin: 3px;
         font-weight: 600;
       }
+
+      .analysis-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.62);
+        backdrop-filter: blur(2px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+
+      .analysis-overlay.show {
+        display: flex;
+      }
+
+      .analysis-box {
+        width: min(92vw, 460px);
+        background: #fff;
+        border-radius: 14px;
+        padding: 26px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+        text-align: center;
+      }
+
+      .analysis-spinner {
+        width: 62px;
+        height: 62px;
+        border: 6px solid #e5e7eb;
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        margin: 0 auto 14px;
+        animation: spin 0.9s linear infinite;
+      }
+
+      .analysis-step {
+        font-weight: 600;
+        color: #1f2937;
+        min-height: 24px;
+      }
+
+      .analysis-sub {
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body class="auth-page">
@@ -110,7 +159,7 @@
                 </div>
               {% endif %}
 
-              <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_resume') }}">
+              <form id="resume-upload-form" method="POST" enctype="multipart/form-data" action="{{ url_for('upload_resume') }}">
                 <div class="mb-3">
                   <label for="job_role" class="form-label fw-semibold">Target job role (select or type)</label>
                   <input list="role-list" name="job_role" id="job_role" class="form-control" placeholder="e.g. backend, data_scientist" value="{{ selected_role or '' }}" />
@@ -209,10 +258,24 @@
       </div>
     </div>
 
+    <div id="analysis-overlay" class="analysis-overlay" aria-hidden="true">
+      <div class="analysis-box">
+        <div class="analysis-spinner"></div>
+        <h5 class="mb-2">Processing Resume</h5>
+        <div id="analysis-step" class="analysis-step">Analyzing resume...</div>
+        <div class="analysis-sub mt-2">Please wait a few seconds. Do not close this page.</div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const input = document.getElementById('resume');
       const label = document.getElementById('selected-file');
+      const uploadForm = document.getElementById('resume-upload-form');
+      const overlay = document.getElementById('analysis-overlay');
+      const stepText = document.getElementById('analysis-step');
+      let submitting = false;
+
       if (input) {
         input.addEventListener('change', function(e) {
           const f = e.target.files && e.target.files[0];
@@ -221,6 +284,44 @@
           } else {
             label.textContent = 'No file chosen';
           }
+        });
+      }
+
+      if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+          if (submitting) {
+            return;
+          }
+
+          const fileSelected = input && input.files && input.files.length > 0;
+          if (!fileSelected) {
+            return;
+          }
+
+          e.preventDefault();
+          submitting = true;
+
+          overlay.classList.add('show');
+          overlay.setAttribute('aria-hidden', 'false');
+
+          const steps = [
+            'Analyzing resume...',
+            'Fetching profile data...',
+            'Extracting skills...',
+            'Generating insights...'
+          ];
+
+          let idx = 0;
+          stepText.textContent = steps[idx];
+          const intervalId = setInterval(function() {
+            idx = (idx + 1) % steps.length;
+            stepText.textContent = steps[idx];
+          }, 850);
+
+          setTimeout(function() {
+            clearInterval(intervalId);
+            uploadForm.submit();
+          }, 3200);
         });
       }
     </script>
