@@ -282,14 +282,14 @@
                         <i class="fas fa-check"></i> Already Applied
                     </button>
                 {% else %}
-                    <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display:inline;">
+                    <form method="POST" action="{{ url_for('apply_job', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();">
                         <button type="submit" class="btn btn-sm btn-primary">
                             <i class="fas fa-paper-plane"></i> Apply Now
                         </button>
                     </form>
                 {% endif %}
                 
-                <form method="POST" action="{{ url_for('save_job', job_id=job.id) }}" style="display:inline;">
+                  <form method="POST" action="{{ url_for('save_job', job_id=job.id) }}" style="display:inline;" onclick="event.stopPropagation();">
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="fas fa-trash-alt"></i> Remove
                     </button>

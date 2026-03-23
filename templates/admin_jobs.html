@@ -101,7 +101,7 @@
                                             <i class="fas fa-{{ 'toggle-off' if job.is_active else 'toggle-on' }}"></i>
                                         </button>
                                     </form>
-                                    <button onclick="confirmDelete({{ job.id }}, '{{ job.job_title }}')" 
+                                    <button onclick='confirmDelete({{ job.id }}, {{ job.job_title|tojson }})' 
                                             class="btn btn-sm btn-danger" title="Delete Job">
                                         <i class="fas fa-trash"></i>
                                     </button>

@@ -286,6 +286,15 @@ def login_required(role=None):
 
     return decorator
 
+def dashboard_endpoint_for_role(role):
+    if role == 'seeker':
+        return 'seeker_dashboard'
+    if role == 'recruiter':
+        return 'recruiter_dashboard'
+    if role == 'admin':
+        return 'admin_dashboard'
+    return 'login'
+
 @app.route("/")
 def home():
     return redirect(url_for("login"))
@@ -308,6 +317,7 @@ def upload_resume():
 
         if request.method == 'POST':
             if 'resume' not in request.files:
+                flash('No file was uploaded. Please select a file.', 'error')
                 conn.close()
                 return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
@@ -317,6 +327,7 @@ def upload_resume():
             file = request.files['resume']
 
             if file.filename == '':
+                flash('No file selected. Please choose a resume file to upload.', 'error')
                 conn.close()
                 return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
@@ -327,6 +338,7 @@ def upload_resume():
                     file.save(filepath)
                 except Exception as e:
                     print(f"Error saving uploaded file: {str(e)}")
+                    flash(f'Error uploading file: {str(e)}', 'error')
                     conn.close()
                     return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
@@ -394,8 +406,10 @@ def upload_resume():
                 except Exception as e:
                     print(f"Error analyzing resume: {str(e)}")
 
+                flash('Resume uploaded and analyzed successfully!', 'success')
                 return render_template('upload_resume.html', resume=resume, analysis=analysis, role_missing=role_missing, role_suggestions=role_suggestions, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()), selected_role=job_role)
             else:
+                flash('Invalid file type. Please upload a PDF, DOC, DOCX, or TXT file.', 'error')
                 conn.close()
                 return render_template('upload_resume.html', resume=resume, role_options=sorted(getattr(analyzer, 'ROLE_MAP', {}).keys()))
 
@@ -426,11 +440,11 @@ def download_resume(filename):
 
     if not res:
         flash('File not found', 'error')
-        return redirect(url_for('seeker_dashboard'))
+        return redirect(url_for(dashboard_endpoint_for_role(role)))
 
     if res['user_id'] != user_id and role not in ('recruiter', 'admin'):
         flash('Access denied', 'error')
-        return redirect(url_for('seeker_dashboard'))
+        return redirect(url_for(dashboard_endpoint_for_role(role)))
 
     # Serve inline so PDFs and text can be previewed in-browser
     try:
@@ -444,9 +458,6 @@ def download_resume(filename):
 @app.route("/login", methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Clear any stale session so we don't carry over a previous role/user
-        session.clear()
-
         username = request.form.get('username')
         password = request.form.get('password')
         
@@ -459,6 +470,8 @@ def login():
             conn.close()
             
             if user and check_password_hash(user['password_hash'], password):
+                # Clear any stale session only after successful authentication
+                session.clear()
                 # Set session
                 session.permanent = True  # Make session persistent
                 session['user_id'] = user['id']
@@ -2045,6 +2058,7 @@ def analytics():
 @login_required(role="seeker")
 def apply_job(job_id):
     user_id = session.get("user_id")
+    redirect_target = request.referrer or url_for("all_jobs")
     conn = get_db()
     cursor = conn.cursor()
 
@@ -2053,7 +2067,7 @@ def apply_job(job_id):
     if not resume:
         conn.close()
         flash("Please upload a resume before applying to jobs.", "error")
-        return redirect(url_for("seeker_dashboard"))
+        return redirect(redirect_target)
 
     # Get seeker_id from job_seekers table
     seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
@@ -2082,7 +2096,7 @@ def apply_job(job_id):
     finally:
         conn.close()
 
-    return redirect(url_for("seeker_dashboard"))
+    return redirect(redirect_target)
 
 @app.route("/recruiter/view_candidate/<int:seeker_user_id>")
 @login_required(role="recruiter")
@@ -2203,7 +2217,7 @@ def job_details(job_id):
     if not job:
         conn.close()
         flash("Job not found.", "error")
-        return redirect(url_for("seeker_dashboard"))
+        return redirect(url_for(dashboard_endpoint_for_role(session.get('role'))))
 
     # Check if current user has applied (only for seekers)
     has_applied = False
@@ -2232,13 +2246,18 @@ def job_details(job_id):
 @login_required(role="seeker")
 def save_job(job_id):
     user_id = session.get("user_id")
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    redirect_target = request.referrer or url_for("all_jobs")
     conn = get_db()
     cursor = conn.cursor()
 
     seeker = cursor.execute('SELECT id FROM job_seekers WHERE user_id = ?', (user_id,)).fetchone()
     if not seeker:
         conn.close()
-        return jsonify({'error': 'Profile not found'}), 400
+        if is_ajax:
+            return jsonify({'error': 'Profile not found'}), 400
+        flash("Profile not found.", "error")
+        return redirect(url_for("seeker_profile"))
 
     try:
         # Check if already saved
@@ -2252,7 +2271,10 @@ def save_job(job_id):
             cursor.execute('DELETE FROM saved_jobs WHERE id = ?', (existing['id'],))
             conn.commit()
             conn.close()
-            return jsonify({'status': 'unsaved'})
+            if is_ajax:
+                return jsonify({'status': 'unsaved'})
+            flash("Job removed from saved jobs.", "success")
+            return redirect(redirect_target)
         else:
             # Save
             cursor.execute(
@@ -2261,11 +2283,17 @@ def save_job(job_id):
             )
             conn.commit()
             conn.close()
-            return jsonify({'status': 'saved'})
+            if is_ajax:
+                return jsonify({'status': 'saved'})
+            flash("Job saved successfully.", "success")
+            return redirect(redirect_target)
     except Exception as e:
         conn.rollback()
         conn.close()
-        return jsonify({'error': str(e)}), 500
+        if is_ajax:
+            return jsonify({'error': str(e)}), 500
+        flash(f"Failed to save job: {str(e)}", "error")
+        return redirect(redirect_target)
 
 @app.route("/seeker/all_jobs")
 @login_required(role="seeker")

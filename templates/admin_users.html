@@ -97,7 +97,7 @@
                                        class="btn btn-sm btn-primary" title="View Details">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <button onclick="confirmDelete({{ user.id }}, '{{ user.username }}')" 
+                                    <button onclick='confirmDelete({{ user.id }}, {{ user.username|tojson }})' 
                                             class="btn btn-sm btn-danger" title="Delete User">
                                         <i class="fas fa-trash"></i>
                                     </button>
