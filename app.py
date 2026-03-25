@@ -1281,6 +1281,7 @@ def recruiter_dashboard():
     shortlisted_count = 0
     rejected_count = 0
     hired_count = 0
+    conversion_rate = 0.0
     
     if profile and 'recruiter_id' in profile.keys() and profile['recruiter_id']:
         # Determine ORDER BY clause based on sort_by parameter
@@ -1449,6 +1450,8 @@ def recruiter_dashboard():
             (profile['recruiter_id'],),
         ).fetchone()['count']
 
+        conversion_rate = round((hired_count / max(total_applications, 1)) * 100, 1) if total_applications > 0 else 0.0
+
     conn.close()
 
     if not profile:
@@ -1466,6 +1469,7 @@ def recruiter_dashboard():
         shortlisted_count=shortlisted_count,
         rejected_count=rejected_count,
         hired_count=hired_count,
+        conversion_rate=conversion_rate,
         application_match_scores=application_match_scores,
         shortlisted_ats_scores=shortlisted_ats_scores
     )
@@ -1750,6 +1754,65 @@ def recruiter_job_applications(job_id):
     conn.close()
 
     return render_template("job_applications.html", job=job, applications=applications or [], application_ats_scores=application_ats_scores)
+
+
+@app.route("/recruiter/applications")
+@login_required(role="recruiter")
+def recruiter_all_applications():
+    user_id = session.get("user_id")
+    conn = get_db()
+    cursor = conn.cursor()
+
+    recruiter = cursor.execute('SELECT id FROM recruiters WHERE user_id = ?', (user_id,)).fetchone()
+    if not recruiter:
+        conn.close()
+        flash("Recruiter profile not found.", "error")
+        return redirect(url_for("recruiter_dashboard"))
+
+    applications = cursor.execute(
+        """
+        SELECT a.id, a.status, a.applied_at,
+               jp.id as job_id, jp.job_title,
+               js.full_name as candidate_name, js.email as candidate_email,
+               js.user_id as seeker_user_id, js.primary_skills,
+               js.education, js.experience_years
+        FROM applications a
+        JOIN job_postings jp ON a.job_id = jp.id
+        JOIN job_seekers js ON a.seeker_id = js.id
+        WHERE jp.recruiter_id = ?
+        ORDER BY a.applied_at DESC
+        """,
+        (recruiter['id'],),
+    ).fetchall()
+
+    application_ats_scores = {}
+    for application in applications:
+        try:
+            resume = cursor.execute(
+                'SELECT filename FROM resumes WHERE user_id = ?',
+                (application['seeker_user_id'],)
+            ).fetchone()
+
+            if resume:
+                resume_path = os.path.join(app.config['UPLOAD_FOLDER'], resume['filename'])
+                if os.path.exists(resume_path):
+                    analysis_result = analyzer.analyze_resume_file(
+                        resume_path,
+                        profile_skills=application['primary_skills'] or '',
+                        experience_years=application['experience_years'] or 0,
+                        education=application['education'] or ''
+                    )
+                    if analysis_result and 'ats' in analysis_result:
+                        application_ats_scores[application['id']] = analysis_result['ats']['ats_score']
+        except Exception:
+            pass
+
+    conn.close()
+    return render_template(
+        "recruiter_all_applications.html",
+        applications=applications or [],
+        application_ats_scores=application_ats_scores,
+    )
 
 @app.route("/recruiter/edit_job/<int:job_id>", methods=["GET", "POST"])
 @login_required(role="recruiter")

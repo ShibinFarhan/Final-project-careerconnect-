@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>All Applications | CareerConnect</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      :root {
+        --primary: #2563eb;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+      }
+
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+        color: white;
+        border-radius: 14px;
+        padding: 30px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      }
+
+      .card-soft {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      .app-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid var(--primary);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .badge-status {
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
+      <div class="container-fluid px-4">
+        <a class="navbar-brand fw-bold" href="{{ url_for('recruiter_dashboard') }}" style="color: #1d4ed8;">
+          <i class="fas fa-rocket"></i> CareerConnect
+        </a>
+        <div class="ms-auto">
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('recruiter_dashboard') }}">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid px-4 py-4">
+      <div class="hero">
+        <h2 class="fw-bold mb-1"><i class="fas fa-file-alt"></i> All Applications</h2>
+        <p class="mb-0 opacity-75">Track every candidate across all your posted jobs.</p>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-3">
+          <div class="card-soft text-center p-3 bg-white">
+            <h4 class="fw-bold text-primary mb-1">{{ applications|length }}</h4>
+            <small class="text-muted">Total</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card-soft text-center p-3 bg-white">
+            <h4 class="fw-bold text-info mb-1">{{ applications|selectattr('status', 'equalto', 'shortlisted')|list|length }}</h4>
+            <small class="text-muted">Shortlisted</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card-soft text-center p-3 bg-white">
+            <h4 class="fw-bold text-success mb-1">{{ applications|selectattr('status', 'equalto', 'hired')|list|length }}</h4>
+            <small class="text-muted">Interview Scheduled</small>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card-soft text-center p-3 bg-white">
+            <h4 class="fw-bold text-danger mb-1">{{ applications|selectattr('status', 'equalto', 'rejected')|list|length }}</h4>
+            <small class="text-muted">Rejected</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-soft p-3 p-md-4 bg-white">
+        {% if applications and applications|length > 0 %}
+          {% for app in applications %}
+          <div class="app-card">
+            <div class="row align-items-center g-2">
+              <div class="col-lg-4">
+                <h6 class="mb-1 fw-bold">{{ app.candidate_name }}</h6>
+                <div class="small text-muted"><i class="fas fa-envelope"></i> {{ app.candidate_email }}</div>
+              </div>
+              <div class="col-lg-3">
+                <div class="small text-muted">Job Role</div>
+                <div class="fw-semibold">{{ app.job_title }}</div>
+              </div>
+              <div class="col-lg-2">
+                {% if app.status == 'applied' %}
+                  <span class="badge bg-secondary badge-status">Applied</span>
+                {% elif app.status == 'shortlisted' %}
+                  <span class="badge bg-info badge-status">Shortlisted</span>
+                {% elif app.status == 'rejected' %}
+                  <span class="badge bg-danger badge-status">Rejected</span>
+                {% elif app.status == 'hired' %}
+                  <span class="badge bg-success badge-status">Interview Scheduled</span>
+                {% endif %}
+                {% if application_ats_scores and app.id in application_ats_scores %}
+                  <div class="small mt-1 text-success fw-semibold">ATS: {{ application_ats_scores[app.id] }}</div>
+                {% endif %}
+              </div>
+              <div class="col-lg-3 text-lg-end">
+                <a class="btn btn-sm btn-primary" href="{{ url_for('view_candidate', seeker_user_id=app.seeker_user_id) }}?application_id={{ app.id }}">
+                  <i class="fas fa-eye"></i> View Candidate
+                </a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('recruiter_job_applications', job_id=app.job_id) }}">
+                  <i class="fas fa-users"></i> Job Applications
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-inbox" style="font-size: 44px;"></i>
+            <h5 class="mt-3">No applications found</h5>
+            <p class="mb-0">Post a job to start receiving candidates.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  </body>
+</html>
