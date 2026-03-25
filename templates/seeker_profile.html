@@ -2,28 +2,157 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Edit Profile | CareerConnect</title>
-    <!-- Bootstrap CDN -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
       integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
       crossorigin="anonymous"
     />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      :root {
+        --brand-primary: #0f766e;
+        --brand-secondary: #0ea5e9;
+        --ink-strong: #0f172a;
+      }
+
+      body.auth-page {
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 10% 15%, rgba(14, 165, 233, 0.16) 0%, rgba(14, 165, 233, 0) 36%),
+          radial-gradient(circle at 88% 92%, rgba(15, 118, 110, 0.15) 0%, rgba(15, 118, 110, 0) 34%),
+          linear-gradient(145deg, #f8fafc 0%, #ecfeff 50%, #f0f9ff 100%);
+      }
+
+      .profile-shell {
+        border: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+      }
+
+      .profile-hero {
+        background: linear-gradient(120deg, var(--brand-primary) 0%, #0891b2 48%, var(--brand-secondary) 100%);
+        color: #fff;
+        padding: 2rem;
+      }
+
+      .hero-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
+      .quick-card {
+        border: 1px solid #dbeafe;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 14px;
+        padding: 1rem;
+      }
+
+      .quick-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        margin-bottom: 0.55rem;
+      }
+
+      .section-title {
+        color: var(--ink-strong);
+        font-weight: 700;
+      }
+
+      .form-label {
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .form-control,
+      .form-select {
+        border-radius: 12px;
+        border-color: #cbd5e1;
+      }
+
+      .form-control:focus,
+      .form-select:focus {
+        border-color: #0891b2;
+        box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.18);
+      }
+
+      .skills-note {
+        font-size: 0.86rem;
+        color: #475569;
+      }
+
+      .btn-save {
+        background: linear-gradient(120deg, var(--brand-primary) 0%, #06b6d4 100%);
+        border: none;
+      }
+
+      .btn-save:hover {
+        filter: brightness(0.96);
+      }
+    </style>
   </head>
-  <body class="auth-page" style="background: #f5f7fb;">
+  <body class="auth-page">
     <div class="container py-4">
       <div class="row justify-content-center">
-        <div class="col-lg-8 col-xl-7">
-          <div class="card shadow-sm">
-            <div class="card-body p-4 p-md-5">
-              <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="col-lg-10 col-xl-9">
+          <div class="card profile-shell">
+            <div class="profile-hero">
+              <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                 <div>
-                  <h3 class="mb-1">Edit Profile</h3>
-                  <p class="text-muted mb-0">Update your basic details and skills</p>
+                  <span class="hero-chip mb-2"><i class="fas fa-user-edit"></i> Job Seeker Profile</span>
+                  <h2 class="mb-1 fw-bold">Build a stronger first impression</h2>
+                  <p class="mb-0 opacity-75">Keep your profile accurate so recruiters find the right match faster.</p>
                 </div>
-                <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+                <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-light btn-sm px-3">
+                  <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+              </div>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+              <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                  <div class="quick-card h-100">
+                    <div class="quick-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">
+                      <i class="fas fa-id-badge"></i>
+                    </div>
+                    <h6 class="mb-1 section-title">Profile Completeness</h6>
+                    <p class="text-muted mb-0 small">Complete details improve visibility in recruiter searches.</p>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="quick-card h-100">
+                    <div class="quick-icon" style="background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);">
+                      <i class="fas fa-bullseye"></i>
+                    </div>
+                    <h6 class="mb-1 section-title">Role Alignment</h6>
+                    <p class="text-muted mb-0 small">Add relevant skills to improve ATS and role-fit recommendations.</p>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="quick-card h-100">
+                    <div class="quick-icon" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                      <i class="fas fa-bolt"></i>
+                    </div>
+                    <h6 class="mb-1 section-title">Quick Updates</h6>
+                    <p class="text-muted mb-0 small">Edit any field anytime and keep your profile up to date.</p>
+                  </div>
+                </div>
               </div>
 
               {% with messages = get_flashed_messages(with_categories=true) %}
@@ -38,10 +167,11 @@
               {% endwith %}
 
               <form method="POST" action="{{ url_for('seeker_profile') }}">
+                <h5 class="section-title mb-3">Basic Information</h5>
                 <div class="row">
                   <div class="col-md-6">
                     <div class="mb-3">
-                      <label class="form-label" for="full_name">Full Name</label>
+                      <label class="form-label" for="full_name"><i class="fas fa-user me-1 text-muted"></i> Full Name</label>
                       <input
                         id="full_name"
                         name="full_name"
@@ -56,7 +186,7 @@
 
                   <div class="col-md-6">
                     <div class="mb-3">
-                      <label class="form-label" for="email">Email</label>
+                      <label class="form-label" for="email"><i class="fas fa-envelope me-1 text-muted"></i> Email</label>
                       <input
                         id="email"
                         name="email"
@@ -70,10 +200,11 @@
                   </div>
                 </div>
 
+                <h5 class="section-title mb-3 mt-2">Career Snapshot</h5>
                 <div class="row">
                   <div class="col-md-6">
                     <div class="mb-3">
-                      <label class="form-label" for="education">Education</label>
+                      <label class="form-label" for="education"><i class="fas fa-graduation-cap me-1 text-muted"></i> Education</label>
                       <select id="education" name="education" class="form-select" required>
                         {% set edu = profile.education or '' %}
                         <option value="">Select your education level</option>
@@ -89,7 +220,7 @@
 
                   <div class="col-md-6">
                     <div class="mb-3">
-                      <label class="form-label" for="experience">Experience (Years)</label>
+                      <label class="form-label" for="experience"><i class="fas fa-briefcase me-1 text-muted"></i> Experience (Years)</label>
                       <input
                         id="experience"
                         name="experience"
@@ -107,7 +238,7 @@
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label" for="primary_skills">Primary Skills</label>
+                  <label class="form-label" for="primary_skills"><i class="fas fa-star me-1 text-muted"></i> Primary Skills</label>
                   <textarea
                     id="primary_skills"
                     name="primary_skills"
@@ -116,12 +247,14 @@
                     placeholder="e.g., Python, SQL, React, Machine Learning"
                     required
                   >{{ profile.primary_skills or '' }}</textarea>
-                  <small class="text-muted">Enter skills separated by commas</small>
+                  <small class="skills-note">Enter skills separated by commas. Prioritize role-critical skills first.</small>
                 </div>
 
                 <div class="d-flex justify-content-end gap-2 mt-3">
                   <a href="{{ url_for('seeker_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
-                  <button type="submit" class="btn btn-primary">Save Changes</button>
+                  <button type="submit" class="btn btn-save text-white px-4">
+                    <i class="fas fa-save me-1"></i> Save Changes
+                  </button>
                 </div>
               </form>
             </div>
