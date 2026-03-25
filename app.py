@@ -9,6 +9,9 @@ from flask import (
     jsonify,
 )
 import sqlite3
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask import send_from_directory
@@ -16,6 +19,8 @@ from datetime import datetime
 from ai import analyzer
 from functools import wraps
 import os
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'  # Change this in production
@@ -296,6 +301,36 @@ def home():
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def send_smtp_email(to_email, subject, body):
+    """Send email via SMTP using environment configuration."""
+    mail_host = os.getenv('MAIL_HOST', '').strip()
+    mail_port = int(os.getenv('MAIL_PORT', '587'))
+    mail_username = os.getenv('MAIL_USERNAME', '').strip()
+    mail_password = os.getenv('MAIL_PASSWORD', '').strip()
+    mail_from = os.getenv('MAIL_FROM', mail_username).strip()
+    mail_use_tls = os.getenv('MAIL_USE_TLS', 'true').strip().lower() in ('1', 'true', 'yes', 'on')
+
+    if not mail_host or not mail_from:
+        return False, 'SMTP config missing (MAIL_HOST or MAIL_FROM).'
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = mail_from
+    msg['To'] = to_email
+    msg.set_content(body)
+
+    try:
+        with smtplib.SMTP(mail_host, mail_port, timeout=20) as server:
+            if mail_use_tls:
+                server.starttls()
+            if mail_username and mail_password:
+                server.login(mail_username, mail_password)
+            server.send_message(msg)
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 
 @app.route('/seeker/upload_resume', methods=['GET', 'POST'])
@@ -2174,6 +2209,29 @@ def update_application_status(application_id):
 
     conn = get_db()
     cursor = conn.cursor()
+    recruiter_user_id = session.get('user_id')
+
+    # Ensure recruiter can only update applications for their own job postings
+    app_data = cursor.execute(
+        """
+        SELECT a.status AS current_status,
+               js.email AS seeker_email,
+               js.full_name AS seeker_name,
+               jp.job_title,
+               r.company_name
+        FROM applications a
+        JOIN job_postings jp ON a.job_id = jp.id
+        JOIN recruiters r ON jp.recruiter_id = r.id
+        JOIN job_seekers js ON a.seeker_id = js.id
+        WHERE a.id = ? AND r.user_id = ?
+        """,
+        (application_id, recruiter_user_id),
+    ).fetchone()
+
+    if not app_data:
+        conn.close()
+        flash("Application not found or access denied.", "error")
+        return redirect(url_for("recruiter_dashboard"))
 
     try:
         cursor.execute(
@@ -2182,6 +2240,30 @@ def update_application_status(application_id):
         )
         conn.commit()
         flash(f"Application status updated to {status}!", "success")
+
+        # Send notification when interview gets scheduled.
+        if status == 'hired' and app_data['current_status'] != 'hired':
+            seeker_email = app_data['seeker_email']
+            seeker_name = app_data['seeker_name'] or 'Candidate'
+            job_title = app_data['job_title'] or 'the role'
+            company_name = app_data['company_name'] or 'the company'
+
+            if seeker_email:
+                subject = f"Interview Scheduled: {job_title}"
+                body = (
+                    f"Hi {seeker_name},\n\n"
+                    f"Congratulations! You got scheduled for an interview for {job_title} at {company_name}.\n"
+                    "Please log in to your CareerConnect account for the latest updates.\n\n"
+                    "Best regards,\n"
+                    "CareerConnect Team"
+                )
+                sent, err = send_smtp_email(seeker_email, subject, body)
+                if sent:
+                    flash("Interview email sent to the job seeker.", "success")
+                else:
+                    flash(f"Status updated, but email could not be sent: {err}", "warning")
+            else:
+                flash("Status updated, but seeker email is not available.", "warning")
     except Exception as e:
         conn.rollback()
         flash(f"Failed to update status: {str(e)}", "error")
