@@ -109,6 +109,30 @@
         display: inline-block;
         margin: 5px;
       }
+
+      .mini-stat {
+        background: #f8fafc;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .evidence-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: #fff;
+        margin-bottom: 10px;
+      }
+
+      .evidence-snippet {
+        font-size: 0.83rem;
+        color: #4b5563;
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin-top: 6px;
+      }
     </style>
   </head>
   <body>
@@ -279,6 +303,91 @@
             <p class="small text-muted mt-3 mb-0">
               <i class="fas fa-info-circle"></i> These roles match your detected skills and experience
             </p>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- ATS Component Breakdown -->
+        {% if analysis.ats and analysis.ats.component_scores %}
+        <div class="card mb-5">
+          <div class="card-header bg-light border-0 pt-4 pb-0">
+            <h5 class="fw-bold mb-0">
+              <i class="fas fa-sliders-h text-info me-2"></i> ATS Component Breakdown
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <div class="mini-stat">
+                  <small class="text-muted d-block">Skills Component</small>
+                  <strong>{{ (analysis.ats.component_scores.skill_score * 100)|int }}%</strong>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mini-stat">
+                  <small class="text-muted d-block">Experience Component</small>
+                  <strong>{{ (analysis.ats.component_scores.experience_score * 100)|int }}%</strong>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="mini-stat">
+                  <small class="text-muted d-block">Education Component</small>
+                  <strong>{{ (analysis.ats.component_scores.education_score * 100)|int }}%</strong>
+                </div>
+              </div>
+            </div>
+
+            <p class="small text-muted mb-2"><strong>Weighted scoring model:</strong></p>
+            <ul class="small text-muted mb-0">
+              <li>Skills weight: {{ (analysis.ats.weights.skill * 100)|int }}%</li>
+              <li>Experience weight: {{ (analysis.ats.weights.experience * 100)|int }}%</li>
+              <li>Education weight: {{ (analysis.ats.weights.education * 100)|int }}%</li>
+            </ul>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Matched Skills Section -->
+        {% if analysis.ats and analysis.ats.matched_skills %}
+        <div class="card mb-5">
+          <div class="card-header bg-light border-0 pt-4 pb-0">
+            <h5 class="fw-bold mb-0">
+              <i class="fas fa-check-double text-success me-2"></i> Matched Skills
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="d-flex flex-wrap">
+              {% for skill in analysis.ats.matched_skills %}
+                <span class="skill-badge">{{ skill }}</span>
+              {% endfor %}
+            </div>
+            <p class="small text-muted mt-3 mb-0">
+              <i class="fas fa-bullseye"></i> Skill match ratio: {{ (analysis.ats.skill_match_ratio * 100)|int }}%
+            </p>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Skill Evidence Section -->
+        {% if analysis.skills_provenance %}
+        <div class="card mb-5">
+          <div class="card-header bg-light border-0 pt-4 pb-0">
+            <h5 class="fw-bold mb-0">
+              <i class="fas fa-search text-primary me-2"></i> Skill Evidence from Resume
+            </h5>
+          </div>
+          <div class="card-body">
+            <p class="small text-muted mb-3">These snippets show where each detected skill appears in your resume text.</p>
+            <div style="max-height: 340px; overflow-y: auto;">
+              {% for skill, snippets in analysis.skills_provenance.items() %}
+                <div class="evidence-item">
+                  <strong class="text-capitalize">{{ skill.replace('_', ' ') }}</strong>
+                  {% for snippet in snippets[:2] %}
+                    <div class="evidence-snippet">{{ snippet }}</div>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
         {% endif %}
