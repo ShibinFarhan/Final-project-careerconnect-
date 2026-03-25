@@ -1034,6 +1034,7 @@ def admin_users():
 @app.route("/admin/users/<int:user_id>/delete", methods=['POST'])
 @login_required(role="admin")
 def admin_delete_user(user_id):
+    redirect_target = request.referrer or url_for('admin_users')
     conn = get_db()
     cursor = conn.cursor()
     
@@ -1052,7 +1053,7 @@ def admin_delete_user(user_id):
     finally:
         conn.close()
     
-    return redirect(url_for('admin_users'))
+    return redirect(redirect_target)
 
 @app.route("/admin/users/<int:user_id>")
 @login_required(role="admin")
