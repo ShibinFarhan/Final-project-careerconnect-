@@ -119,7 +119,7 @@
       }
     </style>
   </head>
-  <body class="auth-page">
+  <body class="auth-page" data-show-analysis-modal="{{ 1 if analysis else 0 }}">
     <div class="container py-4 py-md-5">
       <div class="hero-section">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
@@ -267,6 +267,94 @@
       </div>
     </div>
 
+    {% if analysis %}
+    <div class="modal fade" id="analysisResultModal" tabindex="-1" aria-labelledby="analysisResultModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="analysisResultModalLabel">
+              <i class="fas fa-chart-line text-primary me-2"></i>Resume Analysis Details
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <div class="stat-tile text-center h-100">
+                  <small class="text-muted d-block">ATS Score</small>
+                  <h4 class="mb-0" style="color: var(--primary);">{{ analysis.ats.ats_score }}</h4>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-tile text-center h-100">
+                  <small class="text-muted d-block">Skills Found</small>
+                  <h4 class="mb-0" style="color: var(--success);">{{ analysis.extracted_skills|length }}</h4>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-tile text-center h-100">
+                  <small class="text-muted d-block">Selected Role</small>
+                  <h6 class="mb-0">{{ selected_role if selected_role else 'Not selected' }}</h6>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <h6 class="fw-bold mb-2">Extracted Skills</h6>
+              <div>
+                {% if analysis.extracted_skills %}
+                  {% for skill in analysis.extracted_skills %}
+                    <span class="skill-chip">{{ skill }}</span>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-muted mb-0">No skills extracted.</p>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <h6 class="fw-bold mb-2">Missing Skills for Selected Role</h6>
+              {% if role_missing is not none %}
+                {% if role_missing %}
+                  <p class="mb-0">{{ role_missing | join(', ') }}</p>
+                {% else %}
+                  <p class="text-success mb-0">None or no mapping.</p>
+                {% endif %}
+              {% else %}
+                <p class="text-muted mb-0">Role not selected.</p>
+              {% endif %}
+            </div>
+
+            {% if role_suggestions %}
+            <div class="mb-3">
+              <h6 class="fw-bold mb-2">Suggestions for Selected Role</h6>
+              <ul class="mb-0">
+                {% for suggestion in role_suggestions %}
+                  <li>{{ suggestion }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            {% if analysis.suggestions %}
+            <div class="mb-0">
+              <h6 class="fw-bold mb-2">General Suggestions</h6>
+              <ul class="mb-0">
+                {% for suggestion in analysis.suggestions %}
+                  <li>{{ suggestion }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const input = document.getElementById('resume');
@@ -323,6 +411,18 @@
             uploadForm.submit();
           }, 3200);
         });
+      }
+
+      // Auto-show analysis details after successful upload/render
+      const shouldShowResultModal = document.body.dataset.showAnalysisModal === '1';
+      if (shouldShowResultModal) {
+        const resultModalEl = document.getElementById('analysisResultModal');
+        if (resultModalEl) {
+          const resultModal = new bootstrap.Modal(resultModalEl);
+          setTimeout(function() {
+            resultModal.show();
+          }, 250);
+        }
       }
     </script>
 
