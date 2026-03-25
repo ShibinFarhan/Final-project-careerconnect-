@@ -874,15 +874,46 @@ def analysis_details():
         # compute role-specific info if requested
         role_missing = None
         role_suggestions = None
+        role_required = None
+        role_matched = None
+        role_gap_rows = None
         role_options = sorted(getattr(analyzer, 'ROLE_MAP', {}).keys())
+
+        def skill_priority(skill_name):
+            s = (skill_name or '').lower()
+            high_terms = {
+                'python', 'java', 'javascript', 'sql', 'react', 'node.js', 'nodejs',
+                'aws', 'docker', 'kubernetes', 'git', 'api', 'machine learning',
+                'data structures', 'algorithms', 'system design'
+            }
+            medium_terms = {
+                'flask', 'django', 'fastapi', 'html', 'css', 'pandas', 'numpy',
+                'mongodb', 'postgresql', 'mysql', 'azure', 'gcp', 'linux', 'testing',
+                'ci/cd', 'jenkins', 'terraform', 'graphql'
+            }
+            if s in high_terms:
+                return 'High'
+            if s in medium_terms:
+                return 'Medium'
+            return 'Low'
+
         if job_role:
             jr = job_role.strip().lower()
             role_map = getattr(analyzer, 'ROLE_MAP', {})
             if jr in role_map:
-                required = set(role_map[jr])
-                found = set(analysis.get('extracted_skills', []))
-                missing_for_role = sorted(required - found)
+                role_required = sorted(set(role_map[jr]))
+                found = {str(s).strip().lower() for s in analysis.get('extracted_skills', [])}
+                role_matched = [s for s in role_required if s in found]
+                missing_for_role = [s for s in role_required if s not in found]
                 role_missing = missing_for_role
+
+                role_gap_rows = []
+                for skill in role_required:
+                    if skill in found:
+                        role_gap_rows.append({'skill': skill, 'status': 'Matched', 'priority': '-'})
+                    else:
+                        role_gap_rows.append({'skill': skill, 'status': 'Missing', 'priority': skill_priority(skill)})
+
                 if missing_for_role:
                     role_suggestions = [f'Add skills: {", ".join(missing_for_role)} to match {job_role} roles']
                 else:
@@ -890,15 +921,32 @@ def analysis_details():
             else:
                 role_missing = []
                 role_suggestions = [f'No predefined skill mapping for "{job_role}".']
+                role_required = []
+                role_matched = []
+                role_gap_rows = []
 
     except Exception:
         analysis = None
         role_missing = None
         role_suggestions = None
+        role_required = None
+        role_matched = None
+        role_gap_rows = None
         role_options = sorted(getattr(analyzer, 'ROLE_MAP', {}).keys())
 
     conn.close()
-    return render_template('analysis_details.html', analysis=analysis, resume=resume, role_missing=role_missing, role_suggestions=role_suggestions, role_options=role_options, selected_role=job_role)
+    return render_template(
+        'analysis_details.html',
+        analysis=analysis,
+        resume=resume,
+        role_missing=role_missing,
+        role_suggestions=role_suggestions,
+        role_required=role_required,
+        role_matched=role_matched,
+        role_gap_rows=role_gap_rows,
+        role_options=role_options,
+        selected_role=job_role,
+    )
 
 
 @app.route("/seeker/profile", methods=["GET", "POST"])

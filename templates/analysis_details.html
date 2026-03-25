@@ -133,6 +133,35 @@
         padding: 8px 10px;
         margin-top: 6px;
       }
+
+      .priority-badge {
+        font-weight: 700;
+        font-size: 0.75rem;
+        border-radius: 999px;
+        padding: 4px 10px;
+        display: inline-block;
+      }
+
+      .priority-high {
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
+      .priority-medium {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .priority-low {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .gap-table-wrap {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+      }
     </style>
   </head>
   <body>
@@ -303,6 +332,74 @@
             <p class="small text-muted mt-3 mb-0">
               <i class="fas fa-info-circle"></i> These roles match your detected skills and experience
             </p>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Role Gap Matrix -->
+        {% if selected_role and role_gap_rows is not none %}
+        <div class="card mb-5">
+          <div class="card-header bg-light border-0 pt-4 pb-0">
+            <h5 class="fw-bold mb-0">
+              <i class="fas fa-table text-primary me-2"></i> Role-Specific Skill Gap Matrix
+              <span class="text-muted" style="font-size: 0.95rem;">(Target: {{ selected_role }})</span>
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="d-flex flex-wrap mb-3">
+              <span class="badge bg-dark me-2 mb-2">Required: {{ role_required|length if role_required else 0 }}</span>
+              <span class="badge bg-success me-2 mb-2">Matched: {{ role_matched|length if role_matched else 0 }}</span>
+              <span class="badge bg-danger me-2 mb-2">Missing: {{ role_missing|length if role_missing else 0 }}</span>
+            </div>
+
+            <div class="gap-table-wrap table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width: 220px;">Required Skill</th>
+                    <th style="width: 140px;">Status</th>
+                    <th style="width: 220px;">Impact Priority</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in role_gap_rows %}
+                  <tr>
+                    <td class="fw-semibold text-capitalize">{{ row.skill.replace('_', ' ') }}</td>
+                    <td>
+                      {% if row.status == 'Matched' %}
+                        <span class="badge bg-success">Matched</span>
+                      {% else %}
+                        <span class="badge bg-danger">Missing</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if row.status == 'Missing' %}
+                        {% if row.priority == 'High' %}
+                          <span class="priority-badge priority-high">High Impact</span>
+                        {% elif row.priority == 'Medium' %}
+                          <span class="priority-badge priority-medium">Medium Impact</span>
+                        {% else %}
+                          <span class="priority-badge priority-low">Low Impact</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-muted">Not applicable</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            {% if role_suggestions %}
+            <div class="mt-3">
+              {% for suggestion in role_suggestions %}
+                <div class="alert alert-info mb-2 py-2">
+                  <i class="fas fa-info-circle me-1"></i> {{ suggestion }}
+                </div>
+              {% endfor %}
+            </div>
+            {% endif %}
           </div>
         </div>
         {% endif %}
