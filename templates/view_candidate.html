@@ -101,7 +101,10 @@
               <hr />
               <h6 class="mb-2">Resume</h6>
               <p class="small mb-2">{{ resume.original_filename or resume.filename }}</p>
-              <a href="{{ url_for('download_resume', filename=resume.filename) }}" class="btn btn-sm btn-outline-primary w-100" target="_blank">Download Resume</a>
+              <div class="d-grid gap-2">
+                <a href="{{ url_for('download_resume', filename=resume.filename) }}" class="btn btn-sm btn-outline-primary w-100" target="_blank">Preview Resume</a>
+                <a href="{{ url_for('download_resume', filename=resume.filename) }}?download=1" class="btn btn-sm btn-primary w-100">Download Resume</a>
+              </div>
               {% else %}
               <hr />
               <p class="text-muted small">No resume uploaded</p>

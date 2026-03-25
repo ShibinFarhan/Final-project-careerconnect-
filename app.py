@@ -440,11 +440,14 @@ def download_resume(filename):
         flash('Access denied', 'error')
         return redirect(url_for(dashboard_endpoint_for_role(role)))
 
-    # Serve inline so PDFs and text can be previewed in-browser
+    force_download = request.args.get('download') in ('1', 'true', 'yes')
+
+    # Serve inline by default; use ?download=1 to force attachment download
     try:
-        response = send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
+        response = send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=force_download)
         display_name = res.get('original_filename') if res and res.get('original_filename') else filename
-        response.headers['Content-Disposition'] = f'inline; filename="{display_name}"'
+        disposition = 'attachment' if force_download else 'inline'
+        response.headers['Content-Disposition'] = f'{disposition}; filename="{display_name}"'
         return response
     except Exception:
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
