@@ -200,7 +200,6 @@
               <h6 class="section-title mb-2"><i class="fas fa-file-lines text-info me-1"></i> Resume</h6>
               <p class="small mb-2">{{ resume.original_filename or resume.filename }}</p>
               <div class="d-grid gap-2">
-                <a href="{{ url_for('download_resume', filename=resume.filename) }}" class="btn btn-sm btn-outline-primary w-100" target="_blank">Preview Resume</a>
                 <a href="{{ url_for('download_resume', filename=resume.filename) }}?download=1" class="btn btn-sm btn-primary w-100">Download Resume</a>
               </div>
               {% else %}

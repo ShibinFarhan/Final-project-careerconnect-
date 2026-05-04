@@ -2359,12 +2359,18 @@ def update_application_status(application_id):
             seeker_name = app_data['seeker_name'] or 'Candidate'
             job_title = app_data['job_title'] or 'the role'
             company_name = app_data['company_name'] or 'the company'
+            interview_date = 'May 10, 2026'
+            interview_time = '10:00 AM'
+            interview_location = 'CareerConnect Office, New York'
 
             if seeker_email:
                 subject = f"Interview Scheduled: {job_title}"
                 body = (
                     f"Hi {seeker_name},\n\n"
                     f"Congratulations! You got scheduled for an interview for {job_title} at {company_name}.\n"
+                    f"Date: {interview_date}\n"
+                    f"Time: {interview_time}\n"
+                    f"Location: {interview_location}\n\n"
                     "Please log in to your CareerConnect account for the latest updates.\n\n"
                     "Best regards,\n"
                     "CareerConnect Team"
